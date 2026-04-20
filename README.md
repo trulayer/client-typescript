@@ -35,21 +35,30 @@ await tl.trace("my-agent", async (trace) => {
 ```typescript
 import { TruLayer } from "@trulayer/sdk";
 
-const tl = new TruLayer({ apiKey: "tl_...", project: "my-project" });
+const tl = new TruLayer({ apiKey: "tl_...", projectName: "my-project" });
 
-await tl.trace("rag-pipeline", async (trace) => {
-  const docs = await trace.span("retrieve", "retrieval", async (span) => {
-    const results = await retrieve(query);
-    span.setOutput({ count: results.length });
-    return results;
-  });
+await tl.trace(
+  "rag-pipeline",
+  async (trace) => {
+    trace.setModel("gpt-4o"); // rolled-up model for the trace
 
-  const answer = await trace.span("generate", "llm", async (span) => {
-    const result = await llm.complete(prompt);
-    span.setMetadata({ model: "gpt-4o", tokens: 512 });
-    return result;
-  });
-});
+    const docs = await trace.span("retrieve", "retrieval", async (span) => {
+      const results = await retrieve(query);
+      span.setOutput({ count: results.length });
+      return results;
+    });
+
+    const answer = await trace.span("generate", "llm", async (span) => {
+      const result = await llm.complete(prompt);
+      span.setMetadata({ model: "gpt-4o", tokens: 512 });
+      return result;
+    });
+
+    trace.setCost(0.0042); // optional rolled-up cost in USD
+    // latency_ms is auto-derived from start to end of the trace block
+  },
+  { externalId: "req-42" }, // link to your own request id for idempotent ingest
+);
 ```
 
 ## Auto-Instrumentation
@@ -67,13 +76,10 @@ const anthropic = tl.instrumentAnthropic(new Anthropic());
 ```typescript
 const tl = new TruLayer({
   apiKey: "tl_...",
-  project: "my-project",
-  environment: "production",
+  projectName: "my-project",
   endpoint: "https://api.trulayer.ai",
   batchSize: 50,
   flushInterval: 2000, // ms
-  timeout: 5000,       // ms
-  debug: false,
 });
 ```
 

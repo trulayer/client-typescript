@@ -14,59 +14,59 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 
 ### Project Setup
 
-- [ ] Initialize `package.json` (name: `@trulayer/sdk`)
-- [ ] Add `uuidv7` dependency (for generating UUIDv7 trace/span IDs)
-- [ ] Configure TypeScript (`tsconfig.json`, strict mode)
-- [ ] Configure `tsup` for ESM + CJS dual build
-- [ ] Set up Vitest + coverage
-- [ ] Set up ESLint + Prettier
-- [ ] CI pipeline: lint, type-check, test, build
+- [x] Initialize `package.json` (name: `@trulayer/sdk`)
+- [x] Add `uuidv7` dependency (for generating UUIDv7 trace/span IDs)
+- [x] Configure TypeScript (`tsconfig.json`, strict mode)
+- [x] Configure `tsup` for ESM + CJS dual build
+- [x] Set up Vitest + coverage (44 tests, 98% lines, 90% branches)
+- [x] Set up ESLint + Prettier
+- [x] CI pipeline: lint, type-check, test, build
 
 ### Core Types — [TRU-8](https://linear.app/omnimoda/issue/TRU-8)
 
-- [ ] `Trace`, `Span`, `Event`, `Feedback` TypeScript interfaces
-- [ ] `TruLayerConfig` interface (apiKey, project, environment, endpoint, batchSize, etc.)
-- [ ] `SpanType` enum (`llm`, `tool`, `retrieval`, `chain`)
+- [x] `Trace`, `Span`, `Event`, `Feedback` TypeScript interfaces
+- [x] `TruLayerConfig` interface (apiKey, project, environment, endpoint, batchSize, etc.)
+- [x] `SpanType` type (`llm`, `tool`, `retrieval`, `default`)
 
 ### Client & Init
 
-- [ ] `TruLayer` class with constructor accepting `TruLayerConfig`
-- [ ] Global `init()` singleton factory
-- [ ] Config validation on init (throw if `apiKey` missing)
+- [x] `TruLayer` class with constructor accepting `TruLayerConfig`
+- [x] Global `init()` singleton factory
+- [x] Config validation on init (throw if `apiKey`/`projectId` missing)
 
 ### Trace & Span
 
-- [ ] `tl.trace(name, callback)` — wraps callback, auto-closes trace on return/throw
-- [ ] `trace.span(name, type, callback)` — wraps callback, auto-closes span
-- [ ] Auto-capture start/end timestamps, error status
-- [ ] `span.setInput()`, `span.setOutput()`, `span.setMetadata()`
+- [x] `tl.trace(name, callback)` — wraps callback, auto-closes trace on return/throw
+- [x] `trace.span(name, type, callback)` — wraps callback, auto-closes span
+- [x] Auto-capture start/end timestamps, error status
+- [x] `span.setInput()`, `span.setOutput()`, `span.setMetadata()`
 - [ ] Nested span support (parent_span_id)
-- [ ] All IDs (`trace_id`, `span_id`) generated with `uuidv7()` from the `uuidv7` package
+- [x] All IDs (`trace_id`, `span_id`) generated with `uuidv7()` from the `uuidv7` package
 
 ### Batch Sender
 
-- [ ] In-memory event buffer (array + size/time flush triggers)
-- [ ] `setTimeout`-based flush loop (Edge-compatible)
-- [ ] `fetch`-based HTTP batch POST to `/v1/ingest/batch`
-- [ ] Retry with exponential backoff (3 retries, jitter)
-- [ ] Drop + `console.warn` on max retries (never throw)
-- [ ] `flush()` method for manual drain
-- [ ] `shutdown()` method for graceful shutdown
+- [x] In-memory event buffer (array + size/time flush triggers)
+- [x] `setTimeout`-based flush loop (Edge-compatible)
+- [x] `fetch`-based HTTP batch POST to `/v1/ingest/batch`
+- [x] Retry with exponential backoff (3 retries)
+- [x] Drop + `console.warn` on max retries (never throw)
+- [x] `flush()` method for manual drain
+- [x] `shutdown()` method for graceful shutdown
 
 ### Auto-Instrumentation
 
-- [ ] `instrumentOpenAI(client)` — wraps `chat.completions.create`, returns typed client
-- [ ] `instrumentAnthropic(client)` — wraps `messages.create`
-- [ ] `instrumentVercelAI()` — middleware for `streamText`, `generateText`, `generateObject`
+- [x] `instrumentOpenAI(client)` — wraps `chat.completions.create`, returns typed Proxy client
+- [x] `instrumentAnthropic(client)` — wraps `messages.create`, returns typed Proxy client
+- [x] `instrumentVercelAI()` — wraps `generateText`, `streamText`, `generateObject`; zero `ai` dep (loose typing)
 
 ### Feedback
 
-- [ ] `tl.feedback(traceId, score, label?, comment?)` — submit feedback
+- [x] `tl.feedback(traceId, label, options?)` — fire-and-forget POST, warns on failure
 
 ### Node.js Extras (`@trulayer/sdk/node`)
 
-- [ ] `process.on('beforeExit')` flush hook
-- [ ] Node.js-specific `init()` with process lifecycle management
+- [x] `process.once('beforeExit')` + `SIGTERM` flush hooks
+- [x] Node.js-specific `init()` with process lifecycle management
 
 ---
 
