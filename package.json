@@ -24,6 +24,11 @@
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",
       "require": "./dist/testing.cjs"
+    },
+    "./redact": {
+      "types": "./dist/redact.d.ts",
+      "import": "./dist/redact.js",
+      "require": "./dist/redact.cjs"
     }
   },
   "main": "./dist/index.cjs",
