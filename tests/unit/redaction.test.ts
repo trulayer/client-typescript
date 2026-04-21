@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TruLayer } from '../../src/index.js'
-import { TraceContext, SpanContext } from '../../src/trace.js'
+import { TraceContext } from '../../src/trace.js'
 import type { BatchSender } from '../../src/batch.js'
 
 function mockBatch(): BatchSender {

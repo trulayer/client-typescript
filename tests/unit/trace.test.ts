@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { TraceContext, SpanContext, _setSpanStorage, _resetSpanStorage, _ensureSpanStorage } from '../../src/trace.js'
 import type { BatchSender } from '../../src/batch.js'
 

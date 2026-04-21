@@ -1,4 +1,4 @@
-import type { BatchSenderLike, FeedbackData, SpanType, TruLayerConfig } from './model.js'
+import type { BatchSenderLike, FeedbackData, TruLayerConfig } from './model.js'
 import { BatchSender } from './batch.js'
 import { LocalBatchSender } from './local-batch.js'
 import { TraceContext, _ensureSpanStorage } from './trace.js'
