@@ -18,11 +18,11 @@ The `@trulayer/sdk` npm package. Provides trace capture, span instrumentation, a
 A task is **not done** until all of the following are true — in order:
 
 1. **Tests pass** — `pnpm type-check` and `pnpm test` both green. Unit tests must land in the same change.
-2. **Committed** — all changed files committed on a feature branch with a descriptive message.
+2. **Committed on a feature branch** — all changed files committed on a branch named `feat/...` or `fix/...`. **Never commit directly to `main`.**
 3. **PR opened** — `gh pr create` targeting `main` with a summary of what changed and why.
-4. **PR merged** — `gh pr merge --squash`. The branch is merged into `main` before work on the next task begins.
+4. **PR merged** — `gh pr merge --squash`. Work on the next task cannot begin until this PR is merged.
 
-"I'll open the PR later" is never acceptable.
+**Direct pushes to `main` are forbidden.** Every change must go through a pull request.
 
 ## Key Commands
 
