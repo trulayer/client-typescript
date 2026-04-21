@@ -90,15 +90,14 @@ Wrapping must be type-safe — the returned type must be identical to the input 
 
 ## Build Output
 
-`tsup` produces:
+`tsup` produces three entry points:
 
-- `dist/index.js` — CJS
-- `dist/index.mjs` — ESM
-- `dist/index.d.ts` — types
+- `dist/index.js` / `dist/index.cjs` / `dist/index.d.ts` — main entry
+- `dist/node.js` / `dist/node.cjs` / `dist/node.d.ts` — Node.js extras (`@trulayer/sdk/node`)
+- `dist/browser.js` / `dist/browser.cjs` / `dist/browser.d.ts` — browser relay mode (`@trulayer/sdk/browser`)
 
-Package `exports` in `package.json` maps `import` → ESM, `require` → CJS.
+Package `exports` in `package.json` maps `import` → ESM, `require` → CJS for each entry.
 
-## Linear References
+## Public Repository Policy
 
-- [TRU-8](https://linear.app/omnimoda/issue/TRU-8) SDK Design
-- [TRU-16](https://linear.app/omnimoda/issue/TRU-16) TypeScript SDK Implementation
+This repository ships to TruLayer customers. Do not introduce references to internal code, internal repositories (e.g. the TruLayer API service or dashboard), internal planning documents, internal Linear issue content, or internal architectural details. Refer to the platform as "TruLayer" or "the TruLayer API" — not as specific internal components. If in doubt, leave it out.

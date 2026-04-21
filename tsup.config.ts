@@ -17,4 +17,19 @@ export default defineConfig([
     target: 'es2020',
     platform: 'node',
   },
+  {
+    entry: { browser: 'src/browser.ts' },
+    format: ['esm', 'cjs'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2020',
+    platform: 'browser',
+  },
+  {
+    entry: { testing: 'src/testing.ts' },
+    format: ['esm', 'cjs'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2020',
+  },
 ])

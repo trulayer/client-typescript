@@ -111,7 +111,7 @@ pnpm type-check      # tsc --noEmit
 pnpm build           # tsup bundle (ESM + CJS)
 ```
 
-## Linear Issues
+## Links
 
-- [TRU-8](https://linear.app/omnimoda/issue/TRU-8) — SDK Design
-- [TRU-16](https://linear.app/omnimoda/issue/TRU-16) — TypeScript SDK Implementation
+- [Documentation](https://docs.trulayer.ai)
+- [API Reference](https://docs.trulayer.ai/api-reference)

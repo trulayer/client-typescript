@@ -1,12 +1,17 @@
-import type { FeedbackData, SpanType, TruLayerConfig } from './model.js'
+import type { BatchSenderLike, FeedbackData, SpanType, TruLayerConfig } from './model.js'
 import { BatchSender } from './batch.js'
-import { TraceContext } from './trace.js'
+import { LocalBatchSender } from './local-batch.js'
+import { TraceContext, _ensureSpanStorage } from './trace.js'
+import { NoopTraceContext } from './noop.js'
 
 const DEFAULT_ENDPOINT = 'https://api.trulayer.ai'
 const DEFAULT_BATCH_SIZE = 50
 const DEFAULT_FLUSH_INTERVAL = 2000
 
 export class TruLayer {
+  /** @internal Prevents duplicate local-mode warnings. */
+  static _localWarned = false
+
   /** Project label sent on every trace. Despite the legacy field name on the
    *  wire (`project_id`), this is a human-readable name that the backend
    *  resolves against the API key's tenant. */
@@ -16,34 +21,69 @@ export class TruLayer {
     return this.projectName
   }
   /** @internal */
-  readonly _batch: BatchSender
+  readonly _batch: BatchSenderLike
+  /** @internal */
+  readonly _sampleRate: number
+  /** @internal */
+  readonly _relayUrl: string | undefined
   private readonly endpoint: string
   private readonly apiKey: string
+  private readonly redact: ((data: unknown) => unknown) | undefined
 
-  constructor(config: TruLayerConfig) {
-    if (!config.apiKey) throw new Error('[trulayer] apiKey is required')
+  /** @internal `_batchOverride` allows the browser entry point to inject a
+   *  relay-based sender without duplicating constructor logic. */
+  constructor(config: TruLayerConfig, _batchOverride?: BatchSenderLike) {
+    const isLocal =
+      (typeof process !== 'undefined' && process.env['TRULAYER_MODE'] === 'local') ||
+      _batchOverride instanceof LocalBatchSender
+
+    if (!isLocal && !config.apiKey) throw new Error('[trulayer] apiKey is required')
     const name = config.projectName ?? config.projectId
-    if (!name) throw new Error('[trulayer] projectName is required')
-    if (config.projectId && !config.projectName) {
+    if (!isLocal && !name) throw new Error('[trulayer] projectName is required')
+    if (config.projectId && !config.projectName && name) {
       console.warn(
         '[trulayer] `projectId` is deprecated; rename to `projectName`. Will be removed in 0.3.x.',
       )
     }
 
-    this.apiKey = config.apiKey
-    this.projectName = name
+    if (isLocal && !TruLayer._localWarned) {
+      console.warn('[trulayer] running in LOCAL mode — no data will be sent to the API')
+      TruLayer._localWarned = true
+    }
+
+    this.apiKey = config.apiKey ?? ''
+    this.projectName = name ?? 'local'
+    this._sampleRate = config.sampleRate ?? 1.0
+    this.redact = config.redact
+    this._relayUrl = config.relayUrl
     this.endpoint = (config.endpoint ?? DEFAULT_ENDPOINT).replace(/\/$/, '')
-    this._batch = new BatchSender(
-      this.apiKey,
-      this.endpoint,
-      config.batchSize ?? DEFAULT_BATCH_SIZE,
-      config.flushInterval ?? DEFAULT_FLUSH_INTERVAL,
-    )
+
+    if (isLocal && !_batchOverride) {
+      this._batch = new LocalBatchSender()
+    } else {
+      this._batch = _batchOverride ?? new BatchSender(
+        this.apiKey,
+        this.endpoint,
+        config.batchSize ?? DEFAULT_BATCH_SIZE,
+        config.flushInterval ?? DEFAULT_FLUSH_INTERVAL,
+      )
+    }
+
+    // Eagerly initialize AsyncLocalStorage for span nesting (fire-and-forget)
+    void _ensureSpanStorage()
+  }
+
+  /** @internal Determine whether this trace should be sampled in. */
+  private _shouldSample(): boolean {
+    // Fast paths: avoid Math.random() when the decision is deterministic
+    if (this._sampleRate >= 1.0) return true
+    if (this._sampleRate <= 0.0) return false
+    return Math.random() < this._sampleRate
   }
 
   async trace<T>(
     name: string,
-    callback: (trace: TraceContext) => Promise<T>,
+    callback: (trace: TraceContext | NoopTraceContext) => Promise<T>,
     options?: {
       sessionId?: string
       externalId?: string
@@ -51,6 +91,11 @@ export class TruLayer {
       metadata?: Record<string, unknown>
     },
   ): Promise<T> {
+    if (!this._shouldSample()) {
+      const noop = new NoopTraceContext()
+      return callback(noop)
+    }
+
     const ctx = new TraceContext(
       this._batch,
       this.projectName,
@@ -59,6 +104,7 @@ export class TruLayer {
       options?.tags,
       options?.metadata,
       options?.externalId,
+      this.redact,
     )
     try {
       const result = await callback(ctx)
@@ -80,6 +126,20 @@ export class TruLayer {
       label,
       ...options,
     }
+
+    // In browser/relay mode, send feedback through the relay without auth
+    if (this._relayUrl) {
+      void globalThis.fetch(this._relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ feedback: body }),
+      }).catch((err: unknown) => {
+        console.warn('[trulayer] feedback submission failed:', err)
+      })
+      return
+    }
+
     // Fire-and-forget — never throws
     void globalThis.fetch(`${this.endpoint}/v1/feedback`, {
       method: 'POST',

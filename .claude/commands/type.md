@@ -14,7 +14,7 @@ Generate following these rules:
 - All IDs are `string` (UUIDv7 as string)
 - All timestamps are `string` (ISO 8601 — JSON serialized)
 - Optional fields use `field?: Type` (not `field: Type | undefined`)
-- Field names must match Go backend JSON tags exactly (snake_case)
+- Field names must match the TruLayer API JSON field names exactly (snake_case)
 - No `any` — use `unknown` for open-ended metadata fields
 
 Example shape:
@@ -32,5 +32,5 @@ export type <name>Input = Omit<<name>, 'id' | 'created_at'>
 
 After generating:
 1. Export the new type from `src/index.ts` if it's part of the public API.
-2. Cross-check field names against the Go backend's JSON tags in `backend/internal/model/`.
+2. Cross-check field names against the TruLayer OpenAPI spec in `tests/fixtures/openapi.yaml`.
 3. Run `pnpm type-check` to verify no type errors.

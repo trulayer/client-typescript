@@ -1,5 +1,7 @@
 # TypeScript SDK — Implementation Tasks
 
+**Due Date: 2026-04-30**
+
 Track implementation progress for the `@trulayer/sdk` npm package.
 
 ## Status Legend
@@ -10,7 +12,7 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 
 ---
 
-## Phase 1: Core SDK — [TRU-16](https://linear.app/omnimoda/issue/TRU-16)
+## Phase 1: Core SDK
 
 ### Project Setup
 
@@ -22,7 +24,7 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 - [x] Set up ESLint + Prettier
 - [x] CI pipeline: lint, type-check, test, build
 
-### Core Types — [TRU-8](https://linear.app/omnimoda/issue/TRU-8)
+### Core Types
 
 - [x] `Trace`, `Span`, `Event`, `Feedback` TypeScript interfaces
 - [x] `TruLayerConfig` interface (apiKey, project, environment, endpoint, batchSize, etc.)
@@ -40,7 +42,7 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 - [x] `trace.span(name, type, callback)` — wraps callback, auto-closes span
 - [x] Auto-capture start/end timestamps, error status
 - [x] `span.setInput()`, `span.setOutput()`, `span.setMetadata()`
-- [ ] Nested span support (parent_span_id)
+- [x] **Nested span support (parent_span_id)** ← top priority (foundational SDK correctness)
 - [x] All IDs (`trace_id`, `span_id`) generated with `uuidv7()` from the `uuidv7` package
 
 ### Batch Sender
@@ -72,11 +74,17 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 
 ## Phase 2: V1 Enhancements
 
-- [ ] `instrumentLangChainJS()` — LangChain.js callback handler
-- [ ] Streaming support: capture streamed token chunks
-- [ ] Sampling rate (skip sending X% of traces)
-- [ ] PII redaction callback hook
-- [ ] Browser compatibility via `@trulayer/sdk/browser` (relay through API route)
+- [x] **`instrumentLangChainJS()` — LangChain.js callback handler** ← top priority
+- [x] Streaming support: capture streamed token chunks
+- [x] Sampling rate (skip sending X% of traces)
+- [x] PII redaction callback hook
+
+---
+
+## Deferred (non-feature — see Linear for priority)
+
+- [x] Browser compatibility via `@trulayer/sdk/browser` (relay through API route)
+- [x] Local/offline sandbox mode (`TRULAYER_MODE=local`, `@trulayer/sdk/testing`) — TRU-81
 
 ---
 
