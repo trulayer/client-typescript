@@ -1,5 +1,4 @@
 import type { SpanType } from './model.js'
-import type { TraceContext, SpanContext } from './trace.js'
 
 /**
  * No-op span context returned when a trace is sampled out.
