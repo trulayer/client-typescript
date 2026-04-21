@@ -9,6 +9,8 @@ export type { TruLayerConfig, TraceData, SpanData, FeedbackData, SpanType, Batch
 export { createTestClient, assertSender, SenderAssertions } from './testing.js'
 export { LocalBatchSender } from './local-batch.js'
 export type { CapturedBatch } from './local-batch.js'
+export { Redactor, BUILTIN_PACKS, redact } from './redact.js'
+export type { Rule, RedactorOptions, PackName } from './redact.js'
 
 import { TruLayer } from './client.js'
 import type { TruLayerConfig } from './model.js'

@@ -32,4 +32,11 @@ export default defineConfig([
     sourcemap: true,
     target: 'es2020',
   },
+  {
+    entry: { redact: 'src/redact.ts' },
+    format: ['esm', 'cjs'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2020',
+  },
 ])
