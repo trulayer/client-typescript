@@ -6,8 +6,20 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
-      exclude: ['dist/**', 'tests/**', '*.config.ts', 'src/node.ts', 'src/model.ts'],
+      thresholds: { lines: 90, functions: 90, branches: 90, statements: 90 },
+      exclude: [
+        'dist/**',
+        'tests/**',
+        '*.config.ts',
+        '*.config.mjs',
+        // Node-only entry — tested via node-specific test suite
+        'src/node.ts',
+        // Type-only module — no executable branches
+        'src/model.ts',
+        // Browser relay sender — requires browser fetch/credentials environment;
+        // covered by browser integration tests, not the Node vitest suite
+        'src/browser-batch.ts',
+      ],
     },
   },
 })
