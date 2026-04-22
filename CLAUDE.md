@@ -13,6 +13,16 @@ The `@trulayer/sdk` npm package. Provides trace capture, span instrumentation, a
 - ESLint + Prettier — lint/format
 - Node.js 18+, Edge runtime, Bun compatible
 
+## Merge Conflict Policy
+
+**Merge conflicts are the engineer's responsibility.** Before opening a PR (and again before merging), rebase onto the latest `main` and resolve all conflicts:
+
+```bash
+git fetch origin && git rebase origin/main
+```
+
+Do not open a PR with a conflicting branch. If a conflict arises after the PR is open because `main` moved, the PR author owns the rebase — not the reviewer or TPM.
+
 ## Definition of Done
 
 A task is **not done** until all of the following are true — in order:
