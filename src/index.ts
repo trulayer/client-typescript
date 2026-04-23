@@ -4,6 +4,15 @@ export { NoopTraceContext, NoopSpanContext } from './noop.js'
 export { instrumentOpenAI } from './instruments/openai.js'
 export { instrumentAnthropic } from './instruments/anthropic.js'
 export { instrumentVercelAI } from './instruments/vercel-ai.js'
+export { instrumentVercelAITools } from './instruments/vercel-ai-tool-calls.js'
+export {
+  instrumentMastraAgent,
+  instrumentMastraWorkflow,
+} from './instruments/mastra.js'
+export {
+  instrumentLlamaIndexQueryEngine,
+  instrumentLlamaIndexRetriever,
+} from './instruments/llamaindex.js'
 export { TruLayerCallbackHandler } from './instruments/langchain.js'
 export type {
   TruLayerConfig,

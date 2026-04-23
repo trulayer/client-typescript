@@ -71,12 +71,35 @@ await tl.trace(
 ## Auto-Instrumentation
 
 ```typescript
-// Wrap OpenAI client
-const openai = tl.instrumentOpenAI(new OpenAI());
+import {
+  instrumentOpenAI,
+  instrumentAnthropic,
+  instrumentVercelAI,
+  instrumentVercelAITools,
+  instrumentMastraAgent,
+  instrumentMastraWorkflow,
+  instrumentLlamaIndexQueryEngine,
+  instrumentLlamaIndexRetriever,
+} from "@trulayer/sdk";
 
-// Wrap Anthropic client
-const anthropic = tl.instrumentAnthropic(new Anthropic());
+await tl.trace("my-agent", async (trace) => {
+  const openai = instrumentOpenAI(new OpenAI(), trace);
+  const anthropic = instrumentAnthropic(new Anthropic(), trace);
+});
 ```
+
+### Supported frameworks
+
+| Framework          | Helper(s)                                                              | Span kinds captured                                              |
+| ------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| OpenAI             | `instrumentOpenAI`                                                     | `chat.completions.create` (+ stream)                             |
+| Anthropic          | `instrumentAnthropic`                                                  | `messages.create` (+ stream)                                     |
+| Vercel AI SDK      | `instrumentVercelAI`, `instrumentVercelAITools`                        | `generateText`, `streamText`, `generateObject`, tool invocations |
+| LangChain.js       | `TruLayerCallbackHandler`                                              | LLM / chain / tool callbacks                                     |
+| Mastra             | `instrumentMastraAgent`, `instrumentMastraWorkflow`                    | agent `.generate()` / `.stream()`, workflow + step `.execute()`  |
+| LlamaIndex.TS      | `instrumentLlamaIndexQueryEngine`, `instrumentLlamaIndexRetriever`     | `QueryEngine.query()`, `Retriever.retrieve()`                    |
+
+Emitted span metadata follows the OpenTelemetry GenAI semantic conventions where applicable (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.tool.name`, `gen_ai.tool.call.id`). Token and model attributes are populated only when the upstream framework exposes them; missing fields are omitted gracefully.
 
 ## Configuration
 
