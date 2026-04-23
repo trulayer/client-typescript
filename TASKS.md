@@ -54,6 +54,7 @@ Track implementation progress for the `@trulayer/sdk` npm package.
 - [x] Drop + `console.warn` on max retries (never throw)
 - [x] `flush()` method for manual drain
 - [x] `shutdown()` method for graceful shutdown
+- [x] Non-retryable 401 handling — raise `InvalidAPIKeyError` on `invalid_api_key` / `api_key_expired`, halt queue
 
 ### Auto-Instrumentation
 

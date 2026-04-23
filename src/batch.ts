@@ -1,4 +1,5 @@
 import type { TraceData } from './model.js'
+import { InvalidAPIKeyError, isInvalidAPIKeyPayload } from './errors.js'
 
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 500
@@ -6,6 +7,12 @@ const RETRY_BASE_MS = 500
 export class BatchSender {
   private buffer: TraceData[] = []
   private timer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * Set when the API has told us the credentials are permanently bad.
+   * Once latched, the sender drops all queued and future events — retrying
+   * would waste the backend's time and cannot succeed.
+   */
+  private fatalError: InvalidAPIKeyError | null = null
 
   constructor(
     private readonly apiKey: string,
@@ -17,6 +24,7 @@ export class BatchSender {
   }
 
   enqueue(trace: TraceData): void {
+    if (this.fatalError) return
     this.buffer.push(trace)
     if (this.buffer.length >= this.batchSize) {
       this.flush()
@@ -27,6 +35,10 @@ export class BatchSender {
     if (this.timer !== null) {
       clearTimeout(this.timer)
       this.timer = null
+    }
+    if (this.fatalError) {
+      this.buffer = []
+      return
     }
     const items = this.buffer.splice(0)
     if (items.length > 0) {
@@ -41,12 +53,25 @@ export class BatchSender {
       clearTimeout(this.timer)
       this.timer = null
     }
+    if (this.fatalError) {
+      this.buffer = []
+      return Promise.resolve()
+    }
     const items = this.buffer.splice(0)
     if (items.length === 0) return Promise.resolve()
     return this.sendWithRetry(items)
   }
 
+  /**
+   * Returns the latched non-retryable error, if any. Exposed for tests and
+   * for callers that want to surface configuration failures proactively.
+   */
+  getFatalError(): InvalidAPIKeyError | null {
+    return this.fatalError
+  }
+
   private scheduleFlush(): void {
+    if (this.fatalError) return
     this.timer = setTimeout(() => {
       this.timer = null
       this.flush()
@@ -67,7 +92,32 @@ export class BatchSender {
         },
         body: JSON.stringify({ traces: items }),
       })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      if (!resp.ok) {
+        if (resp.status === 401) {
+          let payload: unknown = null
+          try {
+            payload = await resp.json()
+          } catch {
+            // Fall through — not every 401 has a JSON body
+          }
+          const match = isInvalidAPIKeyPayload(payload)
+          if (match) {
+            this.fatalError = new InvalidAPIKeyError(match.code)
+            // Stop the flush timer and drop any remaining queued items.
+            if (this.timer !== null) {
+              clearTimeout(this.timer)
+              this.timer = null
+            }
+            this.buffer = []
+            console.warn(
+              `[trulayer] ${this.fatalError.message} (code: ${match.code}) ` +
+                `— halting trace submission for this client.`,
+            )
+            return
+          }
+        }
+        throw new Error(`HTTP ${resp.status}`)
+      }
     } catch (err) {
       if (attempt >= MAX_RETRIES - 1) {
         console.warn(
