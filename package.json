@@ -1,6 +1,6 @@
 {
   "name": "@trulayer/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TruLayer AI — trace capture SDK for TypeScript",
   "license": "MIT",
   "type": "module",
