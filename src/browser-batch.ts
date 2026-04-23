@@ -1,4 +1,5 @@
 import type { TraceData } from './model.js'
+import { traceToWire } from './model.js'
 
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 500
@@ -72,7 +73,7 @@ export class BrowserBatchSender {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ traces: items }),
+        body: JSON.stringify({ traces: items.map(traceToWire) }),
       })
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     } catch (err) {

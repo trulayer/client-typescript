@@ -1,4 +1,5 @@
 import type { TraceData } from './model.js'
+import { traceToWire } from './model.js'
 import { InvalidAPIKeyError, isInvalidAPIKeyPayload } from './errors.js'
 
 const MAX_RETRIES = 3
@@ -90,7 +91,7 @@ export class BatchSender {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({ traces: items }),
+        body: JSON.stringify({ traces: items.map(traceToWire) }),
       })
       if (!resp.ok) {
         if (resp.status === 401) {
