@@ -94,6 +94,7 @@ export class TruLayer {
       sessionId?: string
       externalId?: string
       tags?: string[]
+      tagMap?: Record<string, string>
       metadata?: Record<string, unknown>
     },
   ): Promise<T> {
@@ -111,6 +112,7 @@ export class TruLayer {
       options?.metadata,
       options?.externalId,
       this.redact,
+      options?.tagMap,
     )
     try {
       const result = await callback(ctx)

@@ -194,6 +194,7 @@ export class TraceContext {
     metadata?: Record<string, unknown>,
     externalId?: string,
     redact?: (data: unknown) => unknown,
+    tagMap?: Record<string, string>,
   ) {
     this.startMs = Date.now()
     this.redact = redact
@@ -215,6 +216,9 @@ export class TraceContext {
       spans: [],
       started_at: nowISO(),
       ended_at: null,
+    }
+    if (tagMap !== undefined) {
+      this.data.tag_map = { ...tagMap }
     }
   }
 
@@ -265,6 +269,23 @@ export class TraceContext {
 
   addTag(tag: string): this {
     this.data.tags.push(tag)
+    return this
+  }
+
+  /**
+   * Attach a structured key → value tag to the trace. Unlike {@link addTag},
+   * these are indexed server-side and filterable via the `tag_key` /
+   * `tag_value` parameters on list endpoints.
+   *
+   * Limits: max 20 keys per trace, 64 characters per key and value.
+   * Values exceeding these limits are accepted client-side and rejected
+   * by the server with a 400 response.
+   */
+  setTag(key: string, value: string): this {
+    if (this.data.tag_map === undefined) {
+      this.data.tag_map = {}
+    }
+    this.data.tag_map[key] = value
     return this
   }
 

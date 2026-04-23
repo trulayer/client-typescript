@@ -49,6 +49,15 @@ export interface TraceData {
   error: boolean
   error_message: string | null
   tags: string[]
+  /**
+   * Optional structured key → value tags. When non-empty, this is sent
+   * as the `tags` field on the ingestion wire format (object form) and
+   * takes precedence over the legacy string-array `tags` field. Enables
+   * server-side filtering by tag key/value pair on list endpoints.
+   *
+   * Limits: max 20 keys, max 64 characters per key and value.
+   */
+  tag_map?: Record<string, string>
   metadata: Record<string, unknown>
   spans: SpanData[]
   started_at: string // ISO 8601
@@ -93,7 +102,12 @@ export interface TraceWire {
   latency_ms: number | null
   cost: number | null
   error: string | null
-  tags: string[]
+  /**
+   * Wire field — either a string array (legacy) or a `{key: value}` map
+   * (TRU-215). Map form takes precedence when both are set on the
+   * in-memory `TraceData`.
+   */
+  tags: string[] | Record<string, string>
   metadata: Record<string, unknown>
   spans: SpanWire[]
   started_at: string
@@ -124,6 +138,11 @@ export function spanToWire(s: SpanData): SpanWire {
 }
 
 export function traceToWire(t: TraceData): TraceWire {
+  // When a non-empty tag_map is set it takes precedence over the legacy
+  // string-array `tags` — the server indexes map-form tags and exposes
+  // them to the dashboard filter bar.
+  const hasTagMap =
+    t.tag_map !== undefined && Object.keys(t.tag_map).length > 0
   return {
     id: t.id,
     project_id: t.project_id,
@@ -136,7 +155,7 @@ export function traceToWire(t: TraceData): TraceWire {
     latency_ms: t.latency_ms,
     cost: t.cost,
     error: t.error ? t.error_message : null,
-    tags: t.tags,
+    tags: hasTagMap ? (t.tag_map as Record<string, string>) : t.tags,
     metadata: t.metadata,
     spans: t.spans.map(spanToWire),
     started_at: t.started_at,
