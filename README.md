@@ -1,6 +1,13 @@
 # TruLayer AI — TypeScript SDK
 
+> **Status: Alpha.** APIs are pre-`1.0.0` and may change between minor releases.
+> Pin a specific version in production until `1.0.0` ships.
+
 TypeScript/JavaScript SDK for instrumenting AI applications and sending traces to TruLayer AI. Works in Node.js, Edge runtimes, and serverless environments.
+
+- Documentation: https://docs.trulayer.ai
+- Source: https://github.com/trulayer/client-typescript
+- Issues: https://github.com/trulayer/client-typescript/issues
 
 ## Installation
 
