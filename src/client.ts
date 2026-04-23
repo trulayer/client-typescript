@@ -1,4 +1,10 @@
-import type { BatchSenderLike, FeedbackData, TruLayerConfig } from './model.js'
+import type {
+  BatchSenderLike,
+  EvalRequest,
+  EvalTriggerResponse,
+  FeedbackData,
+  TruLayerConfig,
+} from './model.js'
 import { BatchSender } from './batch.js'
 import { LocalBatchSender } from './local-batch.js'
 import { TraceContext, _ensureSpanStorage } from './trace.js'
@@ -151,6 +157,48 @@ export class TruLayer {
     }).catch((err: unknown) => {
       console.warn('[trulayer] feedback submission failed:', err)
     })
+  }
+
+  /**
+   * Trigger an async evaluation for a previously ingested trace.
+   *
+   * Maps to `POST /v1/eval`. Returns the eval ID when the trigger was
+   * accepted, or `null` on any failure (network, HTTP error, invalid
+   * response). Never throws into user code.
+   *
+   * @param traceId - The UUIDv7 of the trace to evaluate.
+   * @param evaluatorType - The evaluator identifier (e.g. `"hallucination"`, `"toxicity"`).
+   * @param metricName - Human-readable metric label shown in the dashboard.
+   */
+  async eval(
+    traceId: string,
+    evaluatorType: string,
+    metricName: string,
+  ): Promise<string | null> {
+    const body: EvalRequest = {
+      trace_id: traceId,
+      evaluator_type: evaluatorType,
+      metric_name: metricName,
+    }
+    try {
+      const resp = await globalThis.fetch(`${this.endpoint}/v1/eval`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+      })
+      if (!resp.ok) {
+        console.warn(`[trulayer] eval trigger failed: HTTP ${resp.status}`)
+        return null
+      }
+      const parsed = (await resp.json()) as Partial<EvalTriggerResponse>
+      return typeof parsed.eval_id === 'string' ? parsed.eval_id : null
+    } catch (err) {
+      console.warn('[trulayer] eval trigger failed:', err)
+      return null
+    }
   }
 
   flush(): void {

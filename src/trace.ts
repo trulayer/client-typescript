@@ -209,6 +209,7 @@ export class TraceContext {
       latency_ms: null,
       cost: null,
       error: false,
+      error_message: null,
       tags: tags ?? [],
       metadata: metadata ?? {},
       spans: [],
@@ -305,7 +306,10 @@ export class TraceContext {
     if (this.data.latency_ms === null) {
       this.data.latency_ms = Date.now() - this.startMs
     }
-    if (error !== undefined) this.data.error = true
+    if (error !== undefined) {
+      this.data.error = true
+      this.data.error_message = error instanceof Error ? error.message : String(error)
+    }
     try {
       this.batch.enqueue(this.data)
     } catch {

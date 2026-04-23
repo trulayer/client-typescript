@@ -5,7 +5,19 @@ export { instrumentOpenAI } from './instruments/openai.js'
 export { instrumentAnthropic } from './instruments/anthropic.js'
 export { instrumentVercelAI } from './instruments/vercel-ai.js'
 export { TruLayerCallbackHandler } from './instruments/langchain.js'
-export type { TruLayerConfig, TraceData, SpanData, FeedbackData, SpanType, BatchSenderLike } from './model.js'
+export type {
+  TruLayerConfig,
+  TraceData,
+  SpanData,
+  TraceWire,
+  SpanWire,
+  FeedbackData,
+  SpanType,
+  BatchSenderLike,
+  EvalRequest,
+  EvalTriggerResponse,
+} from './model.js'
+export { traceToWire, spanToWire } from './model.js'
 export { createTestClient, assertSender, SenderAssertions } from './testing.js'
 export { LocalBatchSender } from './local-batch.js'
 export type { CapturedBatch } from './local-batch.js'

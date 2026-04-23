@@ -71,6 +71,7 @@ export class NoopTraceContext {
     latency_ms: null,
     cost: null,
     error: false,
+    error_message: null,
     tags: [] as string[],
     metadata: {},
     spans: [] as never[],

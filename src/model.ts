@@ -7,6 +7,11 @@ export interface BatchSenderLike {
 
 export type SpanType = 'llm' | 'tool' | 'retrieval' | 'chain' | 'default'
 
+/**
+ * In-memory span representation used by the SDK. Field names are ergonomic
+ * (`span_type`, `started_at`, `ended_at`) and match the SDK surface; they are
+ * translated to the TruLayer ingestion wire format by {@link spanToWire}.
+ */
 export interface SpanData {
   id: string
   trace_id: string
@@ -26,6 +31,10 @@ export interface SpanData {
   ended_at: string | null
 }
 
+/**
+ * In-memory trace representation used by the SDK. Translated to the wire
+ * format by {@link traceToWire}.
+ */
 export interface TraceData {
   id: string
   project_id: string
@@ -38,11 +47,101 @@ export interface TraceData {
   latency_ms: number | null
   cost: number | null
   error: boolean
+  error_message: string | null
   tags: string[]
   metadata: Record<string, unknown>
   spans: SpanData[]
   started_at: string // ISO 8601
   ended_at: string | null
+}
+
+/**
+ * Span wire shape sent to the TruLayer ingestion API.
+ * - `span_type`  → `type`
+ * - `started_at` → `start_time`
+ * - `ended_at`   → `end_time`
+ * - `error: boolean + error_message: string | null` → `error: string | null`
+ */
+export interface SpanWire {
+  id: string
+  trace_id: string
+  parent_span_id?: string
+  name: string
+  type: SpanType
+  input: string | null
+  output: string | null
+  error: string | null
+  latency_ms: number | null
+  model: string | null
+  prompt_tokens: number | null
+  completion_tokens: number | null
+  metadata: Record<string, unknown>
+  start_time: string
+  end_time: string | null
+}
+
+/** Trace wire shape sent to the TruLayer ingestion API. */
+export interface TraceWire {
+  id: string
+  project_id: string
+  session_id: string | null
+  external_id: string | null
+  name: string | null
+  input: string | null
+  output: string | null
+  model: string | null
+  latency_ms: number | null
+  cost: number | null
+  error: string | null
+  tags: string[]
+  metadata: Record<string, unknown>
+  spans: SpanWire[]
+  started_at: string
+  ended_at: string | null
+}
+
+export function spanToWire(s: SpanData): SpanWire {
+  const wire: SpanWire = {
+    id: s.id,
+    trace_id: s.trace_id,
+    name: s.name,
+    type: s.span_type,
+    input: s.input,
+    output: s.output,
+    error: s.error ? s.error_message : null,
+    latency_ms: s.latency_ms,
+    model: s.model,
+    prompt_tokens: s.prompt_tokens,
+    completion_tokens: s.completion_tokens,
+    metadata: s.metadata,
+    start_time: s.started_at,
+    end_time: s.ended_at,
+  }
+  if (s.parent_span_id !== undefined) {
+    wire.parent_span_id = s.parent_span_id
+  }
+  return wire
+}
+
+export function traceToWire(t: TraceData): TraceWire {
+  return {
+    id: t.id,
+    project_id: t.project_id,
+    session_id: t.session_id,
+    external_id: t.external_id,
+    name: t.name,
+    input: t.input,
+    output: t.output,
+    model: t.model,
+    latency_ms: t.latency_ms,
+    cost: t.cost,
+    error: t.error ? t.error_message : null,
+    tags: t.tags,
+    metadata: t.metadata,
+    spans: t.spans.map(spanToWire),
+    started_at: t.started_at,
+    ended_at: t.ended_at,
+  }
 }
 
 export interface FeedbackData {
@@ -51,6 +150,19 @@ export interface FeedbackData {
   score?: number
   comment?: string
   metadata?: Record<string, unknown>
+}
+
+/** Request body for POST /v1/eval. */
+export interface EvalRequest {
+  trace_id: string
+  evaluator_type: string
+  metric_name: string
+}
+
+/** Response body from POST /v1/eval. */
+export interface EvalTriggerResponse {
+  eval_id: string
+  status: string
 }
 
 export interface TruLayerConfig {
