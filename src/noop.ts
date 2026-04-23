@@ -103,6 +103,10 @@ export class NoopTraceContext {
     return this
   }
 
+  setTag(_key: string, _value: string): this {
+    return this
+  }
+
   async span<T>(
     _name: string,
     _spanType: SpanType,
