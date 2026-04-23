@@ -90,6 +90,38 @@ const tl = new TruLayer({
 });
 ```
 
+## Error Handling
+
+The SDK is fire-and-forget: transient HTTP failures are retried with exponential backoff (up to 3 attempts) and eventually logged via `console.warn`. User code is never interrupted by network errors.
+
+One failure mode is **non-retryable** and surfaced as a typed error: if the TruLayer API responds with HTTP 401 and an error code of `invalid_api_key` or `api_key_expired`, the SDK:
+
+- Raises `InvalidAPIKeyError` internally (no retries, no backoff).
+- Drops all queued traces and rejects subsequent `enqueue` calls on that client instance.
+- Logs a single warning identifying the failure.
+
+These are permanent configuration errors — retrying cannot succeed, so the SDK halts to avoid wasting requests.
+
+```typescript
+import { TruLayer, InvalidAPIKeyError } from "@trulayer/sdk";
+
+const tl = new TruLayer({ apiKey: process.env.TRULAYER_API_KEY!, projectName: "my-project" });
+
+// Recommended: fail fast at startup with a lightweight probe trace.
+try {
+  await tl.trace("startup-probe", async () => {});
+  await tl.shutdown();
+} catch (err) {
+  if (err instanceof InvalidAPIKeyError) {
+    console.error(err.message); // "API key is invalid or has expired — check your configuration."
+    process.exit(1);
+  }
+  throw err;
+}
+```
+
+`InvalidAPIKeyError` exposes a `code` field (`"invalid_api_key" | "api_key_expired"`) for programmatic handling.
+
 ## Runtime Compatibility
 
 | Runtime | Supported |
