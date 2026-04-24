@@ -95,8 +95,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Generate CycloneDX SBOM
+        # @cyclonedx/cyclonedx-npm requires an npm lockfile. Synthesise one
+        # from node_modules (populated by pnpm install) so the SBOM matches
+        # what the release workflow produces.
         run: |
+          set -euo pipefail
           mkdir -p artifacts
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           npx --yes @cyclonedx/cyclonedx-npm@latest \
             --output-format JSON \
             --output-file artifacts/sbom.cdx.json \
