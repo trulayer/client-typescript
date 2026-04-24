@@ -97,6 +97,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Create artifacts directory
+        run: mkdir -p artifacts
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
         with:
