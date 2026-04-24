@@ -1,5 +1,7 @@
 # TruLayer AI — TypeScript SDK
 
+[![codecov](https://codecov.io/gh/trulayer/client-typescript/graph/badge.svg?token=1Q01FL9TJJ)](https://codecov.io/gh/trulayer/client-typescript)
+
 > **Status: Alpha.** APIs are pre-`1.0.0` and may change between minor releases.
 > Pin a specific version in production until `1.0.0` ships.
 
