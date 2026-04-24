@@ -34,21 +34,17 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Generate CycloneDX SBOM
-        # @cyclonedx/cyclonedx-npm requires an npm lockfile to resolve the
-        # dependency tree. This repo uses pnpm as its primary lockfile, so
-        # we generate a transient package-lock.json from node_modules (which
-        # `pnpm install --frozen-lockfile` above populated) and feed that to
-        # the SBOM generator. package-lock.json is .gitignored — never
-        # committed.
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npx --yes @cyclonedx/cyclonedx-npm@latest \
-            --output-format JSON \
-            --output-file "artifacts/trulayer-sdk-${{ steps.version.outputs.version }}-sbom.cdx.json" \
-            --spec-version 1.5 \
-            --package-lock-only
+        # syft (anchore/sbom-action) reads pnpm-lock.yaml natively and emits
+        # a CycloneDX 1.5 JSON SBOM. We avoid @cyclonedx/cyclonedx-npm here
+        # because it requires an npm package-lock.json which this repo does
+        # not maintain.
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: artifacts/trulayer-sdk-${{ steps.version.outputs.version }}-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Pack tarball (what will ship to npm)
         id: pack
         run: |

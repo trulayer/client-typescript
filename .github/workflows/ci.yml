@@ -81,7 +81,10 @@ jobs:
   sbom:
     name: SBOM generation (dry run)
     # Mirrors the release workflow's SBOM step on every PR so a future edit
-    # cannot silently break CycloneDX generation between tag pushes.
+    # cannot silently break CycloneDX generation between tag pushes. We use
+    # anchore/sbom-action (syft) rather than @cyclonedx/cyclonedx-npm here
+    # because this repo uses pnpm — syft reads pnpm-lock.yaml natively; the
+    # CycloneDX npm tool requires a package-lock.json we don't maintain.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -95,18 +98,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Generate CycloneDX SBOM
-        # @cyclonedx/cyclonedx-npm requires an npm lockfile. Synthesise one
-        # from node_modules (populated by pnpm install) so the SBOM matches
-        # what the release workflow produces.
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npx --yes @cyclonedx/cyclonedx-npm@latest \
-            --output-format JSON \
-            --output-file artifacts/sbom.cdx.json \
-            --spec-version 1.5 \
-            --package-lock-only
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: artifacts/sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Validate SBOM is well-formed CycloneDX
         run: |
           set -euo pipefail
@@ -138,8 +136,10 @@ jobs:
             || { echo "release.yml: missing cosign sign-blob step"; exit 1; }
           grep -q -- '--provenance' "$wf" \
             || { echo "release.yml: npm publish missing --provenance flag"; exit 1; }
-          grep -q '@cyclonedx/cyclonedx-npm' "$wf" \
-            || { echo "release.yml: missing CycloneDX SBOM generation"; exit 1; }
+          grep -q 'anchore/sbom-action' "$wf" \
+            || { echo "release.yml: missing CycloneDX SBOM action (anchore/sbom-action)"; exit 1; }
+          grep -q 'cyclonedx-json' "$wf" \
+            || { echo "release.yml: SBOM format is not cyclonedx-json"; exit 1; }
           grep -q 'softprops/action-gh-release' "$wf" \
             || { echo "release.yml: missing GitHub Release attachment"; exit 1; }
           grep -q 'cosign verify-blob' "$wf" \
