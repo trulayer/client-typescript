@@ -5,7 +5,7 @@ export default defineConfig({
     environment: 'node',
     // Workspace packages (e.g. @trulayer/mcp) own their own vitest config
     // and coverage thresholds. The SDK suite only measures the SDK.
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['packages/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
