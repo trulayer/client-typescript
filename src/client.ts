@@ -39,8 +39,14 @@ export class TruLayer {
   /** @internal `_batchOverride` allows the browser entry point to inject a
    *  relay-based sender without duplicating constructor logic. */
   constructor(config: TruLayerConfig, _batchOverride?: BatchSenderLike) {
+    const mode =
+      typeof process !== 'undefined' ? process.env['TRULAYER_MODE'] : undefined
+    // `replay` implies `local` — replayed traces must never escape to the
+    // live API because they were produced by a previous capture and would
+    // double-count in the dashboard.
     const isLocal =
-      (typeof process !== 'undefined' && process.env['TRULAYER_MODE'] === 'local') ||
+      mode === 'local' ||
+      mode === 'replay' ||
       _batchOverride instanceof LocalBatchSender
 
     if (!isLocal && !config.apiKey) throw new Error('[trulayer] apiKey is required')
