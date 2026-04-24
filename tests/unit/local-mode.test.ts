@@ -107,7 +107,7 @@ describe('assertSender', () => {
     const sender = new LocalBatchSender()
     sender.enqueue(makeTrace('t-1', [makeSpan('s-1', 't-1')]))
     expect(() => assertSender(sender).spanCount(1)).not.toThrow()
-    expect(() => assertSender(sender).spanCount(5)).toThrow('Expected 5 spans, got 1')
+    expect(() => assertSender(sender).spanCount(5)).toThrow(/5 span\(s\) total, got 1/)
   })
 
   it('hasSpanNamed() throws when span not found', () => {

@@ -32,6 +32,35 @@ export class InvalidAPIKeyError extends Error {
 }
 
 /**
+ * Raised when the batch sender fails to deliver a batch of traces after
+ * exhausting retries **and** the operator has opted in to block-on-failure
+ * behavior via `TRULAYER_FAIL_MODE=block` (or the equivalent constructor
+ * option).
+ *
+ * Default SDK behavior is drop-and-warn — this error only surfaces when
+ * the caller has explicitly requested blocking semantics, typically on a
+ * critical path where losing traces silently is worse than bubbling an
+ * error back to user code.
+ */
+export class TruLayerFlushError extends Error {
+  /** Discriminator for `instanceof`-unfriendly environments. */
+  override readonly name = 'TruLayerFlushError'
+  /** Number of traces in the failed batch. */
+  readonly batchSize: number
+
+  constructor(message: string, batchSize: number, cause?: unknown) {
+    super(message)
+    this.batchSize = batchSize
+    // `Error.cause` landed in ES2022; ES2020 lib doesn't know about it, so
+    // assign via indexed access to avoid widening the tsconfig target.
+    if (cause !== undefined) {
+      ;(this as unknown as { cause?: unknown }).cause = cause
+    }
+    Object.setPrototypeOf(this, TruLayerFlushError.prototype)
+  }
+}
+
+/**
  * Returns true when a JSON error payload represents a non-retryable API key
  * failure. Accepts either an `error` or `code` field for forward compatibility.
  */

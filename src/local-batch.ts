@@ -52,4 +52,23 @@ export class LocalBatchSender implements BatchSenderLike {
   clear(): void {
     this._batches = []
   }
+
+  /**
+   * Serialize every captured trace to a JSONL file — one {@link TraceData}
+   * JSON object per line. The resulting file can be replayed later with
+   * {@link replay} to reproduce the captured sequence in a fresh sender.
+   *
+   * Node-only (uses `node:fs/promises`). No-op paths / errors bubble up to
+   * the caller so test harnesses can react; this is not part of the
+   * never-throws runtime contract since it is called explicitly by tools,
+   * not by user application code.
+   */
+  async flushToFile(path: string): Promise<void> {
+    const { writeFile } = await import('node:fs/promises')
+    const lines = this.traces.map((t) => JSON.stringify(t))
+    // Trailing newline keeps the file `cat`-friendly and makes streaming
+    // readers (`for await (const line of rl)`) yield the last record.
+    const body = lines.length === 0 ? '' : lines.join('\n') + '\n'
+    await writeFile(path, body, 'utf8')
+  }
 }

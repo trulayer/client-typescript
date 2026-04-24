@@ -145,6 +145,91 @@ try {
 
 `InvalidAPIKeyError` exposes a `code` field (`"invalid_api_key" | "api_key_expired"`) for programmatic handling.
 
+## Failure behavior
+
+The SDK is designed so that a TruLayer ingest outage never becomes an application outage.
+
+**Default — drop and warn.** When the ingest API is unreachable or returns a transient error (5xx, network failure), the SDK retries each batch up to **3× with exponential backoff** (500ms / 1s / 2s). After the third failure the batch is dropped and a single `console.warn` is emitted. Subsequent batch failures within a 60-second window are silently dropped to avoid log flooding; a fresh warning is emitted once the window rolls over.
+
+User code never blocks on network I/O and never sees an ingest failure propagate as an exception. Trace capture runs in-process; transport runs on a background flush loop.
+
+**Opt-in — block on failure.** Set `TRULAYER_FAIL_MODE=block` to make `client.shutdown()` (and explicit `flush()` waits on shutdown) raise `TruLayerFlushError` when a batch exhausts its retries. Use this only on critical paths where losing traces silently is worse than bubbling an error to the caller. It is discouraged as a default — a dead ingest endpoint will take your workers down with it.
+
+```typescript
+import { TruLayer, TruLayerFlushError } from "@trulayer/sdk";
+
+// Either TRULAYER_FAIL_MODE=block in the environment, or construct with
+// the option directly on a custom sender. `TruLayerFlushError` carries
+// `batchSize` and the original `cause`.
+process.env.TRULAYER_FAIL_MODE = "block";
+
+const tl = new TruLayer({ apiKey: "tl_...", projectName: "critical-pipeline" });
+try {
+  await tl.trace("eval-run", async () => {
+    /* ... */
+  });
+  await tl.shutdown();
+} catch (err) {
+  if (err instanceof TruLayerFlushError) {
+    // Log, alert, or abort the pipeline deliberately.
+  }
+  throw err;
+}
+```
+
+**Zero-network — local mode.** For CI and offline development, set `TRULAYER_MODE=local`. The SDK swaps the HTTP sender for an in-memory `LocalBatchSender` that stores traces for inspection, prints nothing to the wire, and never warns. Combine with `@trulayer/sdk/testing` for assertion helpers (see below).
+
+**Replay.** Set `TRULAYER_MODE=replay` together with `TRULAYER_REPLAY_FILE=<path>` to load a previously captured JSONL file on `init()`. Useful for golden-file regression tests and reproducing production traces locally. Malformed lines are skipped with a warning, not surfaced as errors.
+
+```typescript
+// Capture, write to disk, replay elsewhere.
+import { createTestClient, replay } from "@trulayer/sdk/testing";
+
+const { client, sender } = createTestClient();
+await client.trace("...", async (t) => {
+  /* ... */
+});
+client.flush();
+await sender.flushToFile("fixtures/golden.jsonl");
+
+// In another process / test run:
+const result = await replay({ file: "fixtures/golden.jsonl" });
+console.log(`replayed ${result.replayed}, skipped ${result.skipped}`);
+```
+
+## Testing helpers (`@trulayer/sdk/testing`)
+
+`@trulayer/sdk/testing` ships framework-agnostic utilities for writing unit tests against instrumented code without ever reaching the network. Works with Vitest, Jest, Mocha, or any runner that treats thrown errors as failures.
+
+```typescript
+import { createTestClient, assertSender } from "@trulayer/sdk/testing";
+
+const { client, sender } = createTestClient();
+
+await client.trace("rag-pipeline", async (trace) => {
+  await trace.span("retrieve", "retrieval", async () => {
+    /* ... */
+  });
+  await trace.span("generate", "llm", async (span) => {
+    span.setModel("gpt-4o");
+    span.setMetadata({ "gen_ai.system": "openai" });
+  });
+});
+client.flush();
+
+assertSender(sender)
+  .hasTrace()
+  .spanCount(2)
+  .hasSpanNamed("retrieve")
+  .hasAttribute("gen_ai.system", "openai")
+  .hasAttribute("model", "gpt-4o");
+```
+
+- `createTestClient(overrides?)` — returns a `{ client, sender }` pair backed by `LocalBatchSender`. No API key required.
+- `assertSender(sender)` — chainable assertions at the sender level (`hasTrace`, `spanCount`, `hasSpanNamed`). `hasTrace()` returns a per-trace chain with `spanCount`, `hasSpanNamed`, and `hasAttribute(key, value)`.
+- `hasAttribute` matches span metadata first, then falls back to well-known top-level fields (`model`, `name`, `span_type`, `prompt_tokens`, `completion_tokens`) so assertions work regardless of where the instrumenter wrote the value.
+- `sender.flushToFile(path)` / `replay({ file })` — see "Replay" above.
+
 ## Runtime Compatibility
 
 | Runtime | Supported |
