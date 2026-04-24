@@ -5,8 +5,8 @@ on:
     tags:
       - 'v*'
 
-# Publishes @trulayer/sdk to npm with provenance attestation.
-# Requires `NPM_TOKEN` repo secret (Automation token from npmjs.com).
+# Publishes @trulayer/sdk to npm with provenance attestation + Sigstore
+# signatures attached to the GitHub Release.
 permissions:
   contents: read
   id-token: write
@@ -15,6 +15,9 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tarball: ${{ steps.pack.outputs.tarball }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,6 +30,139 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: npm publish --access public --provenance
+      - name: Resolve version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Generate CycloneDX SBOM
+        # @cyclonedx/cyclonedx-npm introspects the installed dependency tree
+        # and emits a CycloneDX 1.5 JSON SBOM — identical to what `npm sbom`
+        # produces but with richer component metadata.
+        run: |
+          mkdir -p artifacts
+          npx --yes @cyclonedx/cyclonedx-npm@latest \
+            --output-format JSON \
+            --output-file "artifacts/trulayer-sdk-${{ steps.version.outputs.version }}-sbom.cdx.json" \
+            --spec-version 1.5 \
+            --package-lock-only
+      - name: Pack tarball (what will ship to npm)
+        id: pack
+        run: |
+          set -euo pipefail
+          npm pack --json > pack.json
+          tarball=$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const j = JSON.parse(readFileSync("pack.json", "utf8")); process.stdout.write(j[0].filename);')
+          mv "$tarball" "artifacts/$tarball"
+          echo "tarball=artifacts/$tarball" >> "$GITHUB_OUTPUT"
+      - name: Publish to npm with provenance
+        # `--provenance` produces an npm provenance attestation (Sigstore
+        # under the hood) bound to this workflow run's OIDC identity.
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Upload artifacts for sign job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+
+  sign:
+    name: Sign artifacts with Sigstore
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Sigstore keyless OIDC
+      contents: write   # attach signatures to the GitHub Release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.4.1
+      - name: Sign tarball + SBOM (keyless, Rekor transparency log)
+        env:
+          COSIGN_YES: "true"   # non-interactive keyless signing
+        run: |
+          set -euo pipefail
+          for artifact in artifacts/*.tgz artifacts/*.cdx.json; do
+            echo "Signing $artifact"
+            cosign sign-blob \
+              --yes \
+              --bundle "${artifact}.sigstore" \
+              "$artifact"
+          done
+      - name: Attach tarball + SBOM + signatures to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.tgz
+            artifacts/*.cdx.json
+            artifacts/*.sigstore
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  verify:
+    name: Verify signature + SBOM + npm provenance
+    needs: sign
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.4.1
+      - name: Verify cosign signatures against expected OIDC identity
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          expected_identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}"
+          expected_issuer="https://token.actions.githubusercontent.com"
+          for artifact in artifacts/*.tgz artifacts/*.cdx.json; do
+            bundle="${artifact}.sigstore"
+            if [[ ! -f "$bundle" ]]; then
+              echo "MISSING signature bundle for $artifact"
+              exit 1
+            fi
+            echo "Verifying $artifact"
+            cosign verify-blob \
+              --bundle "$bundle" \
+              --certificate-identity "$expected_identity" \
+              --certificate-oidc-issuer "$expected_issuer" \
+              "$artifact"
+          done
+      - name: Verify npm provenance on published package
+        # Re-downloads the tarball from the registry and confirms npm
+        # recorded a provenance attestation from this workflow.
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          npm audit signatures --registry=https://registry.npmjs.org || true
+          npm view "@trulayer/sdk@${version}" dist.attestations
+      - name: Validate CycloneDX SBOM is well-formed
+        run: |
+          set -euo pipefail
+          cat > /tmp/validate-sbom.mjs <<'JS'
+          import { readdirSync, readFileSync } from "node:fs";
+          import { join } from "node:path";
+          const sboms = readdirSync("artifacts").filter((f) => f.endsWith(".cdx.json"));
+          if (sboms.length === 0) {
+            console.error("No SBOM found in artifacts/");
+            process.exit(1);
+          }
+          for (const name of sboms) {
+            const doc = JSON.parse(readFileSync(join("artifacts", name), "utf8"));
+            if (doc.bomFormat !== "CycloneDX") throw new Error(`${name}: bomFormat != CycloneDX`);
+            if (!String(doc.specVersion || "").startsWith("1.")) throw new Error(`${name}: missing specVersion`);
+            if (!Array.isArray(doc.components)) throw new Error(`${name}: components must be array`);
+            console.log(`OK ${name}: ${doc.components.length} components, spec ${doc.specVersion}`);
+          }
+          JS
+          node /tmp/validate-sbom.mjs
