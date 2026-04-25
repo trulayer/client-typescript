@@ -237,8 +237,7 @@ describe('instrumentAnthropic', () => {
       trace.finish()
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans[0]
-      expect(span?.error).toBe(true)
-      expect(span?.error_message).toBe('anthropic stream failed')
+      expect(span?.error).toBe('anthropic stream failed')
     })
 
     it('opens span before iteration begins', async () => {

@@ -18,7 +18,7 @@ describe('SpanContext', () => {
     const span = makeSpan('llm-call', 'llm')
     expect(span.data.name).toBe('llm-call')
     expect(span.data.span_type).toBe('llm')
-    expect(span.data.error).toBe(false)
+    expect(span.data.error).toBeNull()
     expect(span.data.parent_span_id).toBeUndefined()
   })
 
@@ -46,7 +46,7 @@ describe('TraceContext', () => {
     const ctx = new TraceContext(batch, 'proj-1', 'my-trace')
     expect(ctx.data.project_id).toBe('proj-1')
     expect(ctx.data.name).toBe('my-trace')
-    expect(ctx.data.error).toBe(false)
+    expect(ctx.data.error).toBeNull()
   })
 
   it('finish enqueues the trace', () => {
@@ -66,7 +66,7 @@ describe('TraceContext', () => {
     const ctx = new TraceContext(batch, 'proj-1')
     ctx.finish(new Error('boom'))
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
-    expect(payload?.error).toBe(true)
+    expect(payload?.error).toBe('boom')
   })
 
   it('span captures timing and output', async () => {
@@ -97,8 +97,7 @@ describe('TraceContext', () => {
 
     ctx.finish()
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
-    expect(payload?.spans[0]?.error).toBe(true)
-    expect(payload?.spans[0]?.error_message).toContain('span error')
+    expect(payload?.spans[0]?.error).toContain('span error')
   })
 
   it('multiple spans accumulate in order', async () => {

@@ -106,8 +106,7 @@ export class SpanContext {
       span_type: spanType,
       input: null,
       output: null,
-      error: false,
-      error_message: null,
+      error: null,
       latency_ms: null,
       model: null,
       prompt_tokens: null,
@@ -209,8 +208,7 @@ export class TraceContext {
       model: null,
       latency_ms: null,
       cost: null,
-      error: false,
-      error_message: null,
+      error: null,
       tags: tags ?? [],
       metadata: metadata ?? {},
       spans: [],
@@ -304,8 +302,7 @@ export class TraceContext {
       try {
         return await callback(span)
       } catch (err) {
-        span.data.error = true
-        span.data.error_message = err instanceof Error ? err.message : String(err)
+        span.data.error = err instanceof Error ? err.message : String(err)
         throw err
       } finally {
         span.data.latency_ms = Date.now() - startMs
@@ -328,8 +325,7 @@ export class TraceContext {
       this.data.latency_ms = Date.now() - this.startMs
     }
     if (error !== undefined) {
-      this.data.error = true
-      this.data.error_message = error instanceof Error ? error.message : String(error)
+      this.data.error = error instanceof Error ? error.message : String(error)
     }
     try {
       this.batch.enqueue(this.data)

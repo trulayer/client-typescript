@@ -11,7 +11,7 @@ function makeTrace(id = 'trace-1'): TraceData {
     name: null,
     input: null,
     output: null,
-    error: false,
+    error: null,
     tags: [],
     metadata: {},
     spans: [],

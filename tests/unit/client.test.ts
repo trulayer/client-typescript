@@ -54,7 +54,7 @@ describe('TruLayer', () => {
         throw new Error('kaboom')
       }),
     ).rejects.toThrow('kaboom')
-    expect(spy.mock.calls[0]?.[0]?.error).toBe(true)
+    expect(spy.mock.calls[0]?.[0]?.error).toBe('kaboom')
   })
 
   it('trace passes sessionId, tags, metadata', async () => {

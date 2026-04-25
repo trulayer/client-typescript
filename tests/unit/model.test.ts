@@ -10,7 +10,7 @@ describe('model types', () => {
       name: 'test',
       input: 'hi',
       output: 'hello',
-      error: false,
+      error: null,
       tags: [],
       metadata: {},
       spans: [],
@@ -18,7 +18,7 @@ describe('model types', () => {
       ended_at: null,
     }
     expect(t.project_id).toBe('proj-1')
-    expect(t.error).toBe(false)
+    expect(t.error).toBeNull()
   })
 
   it('SpanData shape is correct', () => {
@@ -29,8 +29,7 @@ describe('model types', () => {
       span_type: 'llm',
       input: 'prompt',
       output: 'response',
-      error: false,
-      error_message: null,
+      error: null,
       latency_ms: 120,
       model: 'gpt-4o',
       prompt_tokens: 10,
