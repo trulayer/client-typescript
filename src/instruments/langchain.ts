@@ -117,8 +117,7 @@ export class TruLayerCallbackHandler {
       entry.span.setOutput(output)
     }
     if (error) {
-      entry.span.data.error = true
-      entry.span.data.error_message = error.message
+      entry.span.data.error = error.message
     }
     entry.resolve()
   }

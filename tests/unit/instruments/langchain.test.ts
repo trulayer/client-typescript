@@ -59,7 +59,7 @@ describe('TruLayerCallbackHandler', () => {
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans.find((s) => s.name === 'claude')
       expect(span?.output).toBe('Hi there!')
-      expect(span?.error).toBe(false)
+      expect(span?.error).toBeNull()
     })
 
     it('handleLLMError closes the span with error status', async () => {
@@ -73,8 +73,7 @@ describe('TruLayerCallbackHandler', () => {
       trace.finish()
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans.find((s) => s.name === 'llm')
-      expect(span?.error).toBe(true)
-      expect(span?.error_message).toBe('rate limited')
+      expect(span?.error).toBe('rate limited')
     })
 
     it('joins multiple prompts with newlines', async () => {
@@ -148,8 +147,7 @@ describe('TruLayerCallbackHandler', () => {
       trace.finish()
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans.find((s) => s.name === 'search')
-      expect(span?.error).toBe(true)
-      expect(span?.error_message).toBe('timeout')
+      expect(span?.error).toBe('timeout')
     })
 
     it('falls back to "tool" name when tool.name is absent', async () => {
@@ -195,8 +193,7 @@ describe('TruLayerCallbackHandler', () => {
       trace.finish()
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans.find((s) => s.name === 'chain')
-      expect(span?.error).toBe(true)
-      expect(span?.error_message).toBe('chain failed')
+      expect(span?.error).toBe('chain failed')
     })
   })
 

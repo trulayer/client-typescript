@@ -55,7 +55,7 @@ describe('span wire shape', () => {
     expect(keys).not.toContain('ended_at')
   })
 
-  it('collapses error + error_message into a single error: string | null on the wire', async () => {
+  it('passes the in-memory error string through to the wire', async () => {
     const tl = makeClient()
     const captured = captureEnqueued(tl)
 
@@ -96,8 +96,7 @@ describe('span wire shape', () => {
       span_type: 'tool' as const,
       input: 'in',
       output: 'out',
-      error: false,
-      error_message: null,
+      error: null,
       latency_ms: 42,
       model: 'gpt-4',
       prompt_tokens: 10,
@@ -134,8 +133,7 @@ describe('span wire shape', () => {
       span_type: 'other',
       input: null,
       output: null,
-      error: false,
-      error_message: null,
+      error: null,
       latency_ms: null,
       model: null,
       prompt_tokens: null,
@@ -156,7 +154,7 @@ describe('trace wire shape', () => {
     vi.restoreAllMocks()
   })
 
-  it('collapses trace error + error_message into error: string | null', async () => {
+  it('passes the trace error string through to the wire', async () => {
     const tl = makeClient()
     const captured = captureEnqueued(tl)
 

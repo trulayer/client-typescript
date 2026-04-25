@@ -20,8 +20,7 @@ export interface SpanData {
   span_type: SpanType
   input: string | null
   output: string | null
-  error: boolean
-  error_message: string | null
+  error: string | null
   latency_ms: number | null
   model: string | null
   prompt_tokens: number | null
@@ -46,8 +45,7 @@ export interface TraceData {
   model: string | null
   latency_ms: number | null
   cost: number | null
-  error: boolean
-  error_message: string | null
+  error: string | null
   tags: string[]
   /**
    * Optional structured key → value tags. When non-empty, this is sent
@@ -69,7 +67,6 @@ export interface TraceData {
  * - `span_type`  → `type`
  * - `started_at` → `start_time`
  * - `ended_at`   → `end_time`
- * - `error: boolean + error_message: string | null` → `error: string | null`
  */
 export interface SpanWire {
   id: string
@@ -122,7 +119,7 @@ export function spanToWire(s: SpanData): SpanWire {
     type: s.span_type,
     input: s.input,
     output: s.output,
-    error: s.error ? s.error_message : null,
+    error: s.error,
     latency_ms: s.latency_ms,
     model: s.model,
     prompt_tokens: s.prompt_tokens,
@@ -154,7 +151,7 @@ export function traceToWire(t: TraceData): TraceWire {
     model: t.model,
     latency_ms: t.latency_ms,
     cost: t.cost,
-    error: t.error ? t.error_message : null,
+    error: t.error,
     tags: hasTagMap ? (t.tag_map as Record<string, string>) : t.tags,
     metadata: t.metadata,
     spans: t.spans.map(spanToWire),

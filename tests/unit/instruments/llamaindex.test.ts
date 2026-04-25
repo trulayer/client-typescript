@@ -130,6 +130,6 @@ describe('instrumentLlamaIndexRetriever', () => {
     await expect(instrumented.retrieve!('q')).rejects.toThrow('retrieval boom')
     trace.finish()
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
-    expect(payload?.spans[0]?.error).toBe(true)
+    expect(payload?.spans[0]?.error).toBe('retrieval boom')
   })
 })
