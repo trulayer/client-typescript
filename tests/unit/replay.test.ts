@@ -132,7 +132,7 @@ function makeSpan(id: string, traceId: string, name = 'test-span'): SpanData {
     id,
     trace_id: traceId,
     name,
-    span_type: 'default',
+    span_type: 'other',
     input: null,
     output: null,
     error: false,

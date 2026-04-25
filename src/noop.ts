@@ -10,7 +10,7 @@ export class NoopSpanContext {
     id: '',
     trace_id: '',
     name: '',
-    span_type: 'default' as const,
+    span_type: 'other' as const,
     input: null,
     output: null,
     error: false,

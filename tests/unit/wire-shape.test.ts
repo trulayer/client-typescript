@@ -131,7 +131,7 @@ describe('span wire shape', () => {
       id: 'sid',
       trace_id: 'tid',
       name: 'n',
-      span_type: 'default',
+      span_type: 'other',
       input: null,
       output: null,
       error: false,

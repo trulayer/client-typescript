@@ -34,7 +34,7 @@ describe('createTestClient', () => {
   it('captures traces through the paired sender', async () => {
     const { client, sender } = createTestClient()
     await client.trace('outer', async (t) => {
-      await t.span('inner', 'default', async () => {})
+      await t.span('inner', 'other', async () => {})
     })
     client.flush()
     expect(sender.traces).toHaveLength(1)
@@ -189,7 +189,7 @@ function makeSpan(id: string, traceId: string, name = 'test-span'): SpanData {
     id,
     trace_id: traceId,
     name,
-    span_type: 'default',
+    span_type: 'other',
     input: null,
     output: null,
     error: false,

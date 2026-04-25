@@ -5,7 +5,7 @@ export interface BatchSenderLike {
   shutdown(): Promise<void>
 }
 
-export type SpanType = 'llm' | 'tool' | 'retrieval' | 'chain' | 'default'
+export type SpanType = 'llm' | 'tool' | 'retrieval' | 'other'
 
 /**
  * In-memory span representation used by the SDK. Field names are ergonomic

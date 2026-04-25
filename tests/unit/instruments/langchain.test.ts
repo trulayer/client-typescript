@@ -179,7 +179,7 @@ describe('TruLayerCallbackHandler', () => {
       trace.finish()
       const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
       const span = payload?.spans.find((s) => s.name === 'retrieval-chain')
-      expect(span?.span_type).toBe('default')
+      expect(span?.span_type).toBe('other')
       expect(span?.input).toBe(JSON.stringify({ query: 'test' }))
       expect(span?.output).toBe(JSON.stringify({ answer: 'result' }))
     })
@@ -231,7 +231,7 @@ describe('TruLayerCallbackHandler', () => {
       const llmSpan = payload?.spans.find((s) => s.name === 'gpt-4o')
       expect(chainSpan).toBeDefined()
       expect(llmSpan).toBeDefined()
-      expect(chainSpan?.span_type).toBe('default')
+      expect(chainSpan?.span_type).toBe('other')
       expect(llmSpan?.span_type).toBe('llm')
       expect(llmSpan?.input).toBe('Why?')
       expect(llmSpan?.output).toBe('Because.')

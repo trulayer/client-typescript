@@ -7,7 +7,7 @@ function mockBatch(): BatchSender {
 }
 
 /** Helper: create a SpanContext tied to a throwaway TraceContext */
-function makeSpan(name: string, spanType?: 'llm' | 'tool' | 'retrieval' | 'chain' | 'default') {
+function makeSpan(name: string, spanType?: 'llm' | 'tool' | 'retrieval' | 'other') {
   const batch = mockBatch()
   const trace = new TraceContext(batch, 'proj-test')
   return new SpanContext(trace, name, spanType)
@@ -90,7 +90,7 @@ describe('TraceContext', () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
     await expect(
-      ctx.span('bad', 'default', async () => {
+      ctx.span('bad', 'other', async () => {
         throw new Error('span error')
       }),
     ).rejects.toThrow('span error')
@@ -104,7 +104,7 @@ describe('TraceContext', () => {
   it('multiple spans accumulate in order', async () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
-    await ctx.span('span-1', 'default', async () => {})
+    await ctx.span('span-1', 'other', async () => {})
     await ctx.span('span-2', 'llm', async () => {})
     ctx.finish()
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
@@ -158,7 +158,7 @@ describe('Nested spans (parent_span_id)', () => {
   it('top-level span has no parent_span_id', async () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
-    await ctx.span('top', 'default', async () => {})
+    await ctx.span('top', 'other', async () => {})
     ctx.finish()
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
     expect(payload?.spans[0]?.parent_span_id).toBeUndefined()
@@ -170,7 +170,7 @@ describe('Nested spans (parent_span_id)', () => {
     let parentId: string | undefined
     let childParentId: string | undefined
 
-    await ctx.span('parent', 'default', async (parent) => {
+    await ctx.span('parent', 'other', async (parent) => {
       parentId = parent.data.id
       await parent.span('child', 'llm', async (child) => {
         childParentId = child.data.parent_span_id
@@ -190,7 +190,7 @@ describe('Nested spans (parent_span_id)', () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
 
-    await ctx.span('level-1', 'default', async (l1) => {
+    await ctx.span('level-1', 'other', async (l1) => {
       await l1.span('level-2', 'llm', async (l2) => {
         await l2.span('level-3', 'tool', async () => {})
       })
@@ -221,7 +221,7 @@ describe('Nested spans (parent_span_id)', () => {
     const ctx = new TraceContext(batch, 'proj-1')
     let outerId: string | undefined
 
-    await ctx.span('outer', 'default', async (outer) => {
+    await ctx.span('outer', 'other', async (outer) => {
       outerId = outer.data.id
       // Call trace.span() directly (not outer.span()) — should still auto-nest
       await ctx.span('inner', 'llm', async (inner) => {
@@ -238,7 +238,7 @@ describe('Nested spans (parent_span_id)', () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
 
-    await ctx.span('outer', 'default', async () => {
+    await ctx.span('outer', 'other', async () => {
       // Without AsyncLocalStorage, trace.span() won't auto-detect parent
       await ctx.span('inner', 'llm', async () => {})
     })
@@ -256,7 +256,7 @@ describe('Nested spans (parent_span_id)', () => {
     const batch = mockBatch()
     const ctx = new TraceContext(batch, 'proj-1')
 
-    await ctx.span('outer', 'default', async (outer) => {
+    await ctx.span('outer', 'other', async (outer) => {
       await outer.span('inner', 'llm', async (inner) => {
         expect(inner.data.parent_span_id).toBe(outer.data.id)
       })
@@ -272,7 +272,7 @@ describe('Nested spans (parent_span_id)', () => {
 
     // Should complete without error
     await expect(
-      ctx.span('safe', 'default', async () => 'ok'),
+      ctx.span('safe', 'other', async () => 'ok'),
     ).resolves.toBe('ok')
   })
 })

@@ -51,7 +51,7 @@ export class TruLayerCallbackHandler {
   ): void {
     const name = chain.name ?? 'chain'
     const input = JSON.stringify(inputs)
-    void this.openSpan(runId, name, 'default', input)
+    void this.openSpan(runId, name, 'other', input)
   }
 
   handleChainEnd(
@@ -86,7 +86,7 @@ export class TruLayerCallbackHandler {
   private async openSpan(
     runId: string,
     name: string,
-    spanType: 'llm' | 'tool' | 'default',
+    spanType: 'llm' | 'tool' | 'other',
     input: string,
   ): Promise<void> {
     // We use an unresolved promise pattern: trace.span callback stays open
