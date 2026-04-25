@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-The `@trulayer/sdk` npm package. Provides trace capture, span instrumentation, and auto-instrumentation hooks for OpenAI, Anthropic, and Vercel AI SDK. Works in Node.js, Edge runtimes (Vercel Edge, Cloudflare Workers), and Bun.
+The `@trulayer/sdk` npm package. Provides trace capture, span instrumentation, and auto-instrumentation hooks for OpenAI, Anthropic, Vercel AI SDK, LangChain, LlamaIndex, Mastra, and vercel-ai-tool-calls. Works in Node.js, Edge runtimes (Vercel Edge, Cloudflare Workers), and Bun.
 
 ## Tech Stack
 
@@ -69,9 +69,13 @@ src/
   batch.ts              → async batch sender
   model.ts              → TypeScript types (Trace, Span, etc.)
   instruments/
-    openai.ts           → OpenAI auto-instrumentation
-    anthropic.ts        → Anthropic auto-instrumentation
-    vercel-ai.ts        → Vercel AI SDK middleware
+    openai.ts               → OpenAI auto-instrumentation
+    anthropic.ts            → Anthropic auto-instrumentation
+    vercel-ai.ts            → Vercel AI SDK middleware
+    vercel-ai-tool-calls.ts → Vercel AI SDK tool-call tracing
+    langchain.ts            → LangChain auto-instrumentation
+    llamaindex.ts           → LlamaIndex auto-instrumentation
+    mastra.ts               → Mastra auto-instrumentation
 tests/
   unit/                 → Vitest unit tests (mocked fetch)
   integration/          → Tests against mock server
