@@ -12,7 +12,7 @@ import { LocalBatchSender } from './local-batch.js'
  * @example
  * const { client, sender } = createTestClient()
  * await client.trace('my-test', async (t) => {
- *   await t.span('step-1', 'default', async () => {})
+ *   await t.span('step-1', 'other', async () => {})
  * })
  * client.flush()
  * assertSender(sender).hasTrace().spanCount(1).hasSpanNamed('step-1')

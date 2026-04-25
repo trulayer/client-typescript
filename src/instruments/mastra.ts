@@ -263,7 +263,7 @@ export function instrumentMastraWorkflow<T extends WorkflowLike>(
           return (async () => {
             return trace.span(
               `mastra.workflow.${target.name ?? 'workflow'}`,
-              'chain',
+              'other',
               async (span) => {
                 try {
                   span.setInput(
@@ -299,7 +299,7 @@ function wrapStep(step: WorkflowStepLike, trace: TraceContext): WorkflowStepLike
           return (async () => {
             return trace.span(
               `mastra.step.${target.id ?? target.name ?? 'step'}`,
-              'default',
+              'other',
               async (span) => {
                 try {
                   span.setInput(

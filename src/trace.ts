@@ -93,7 +93,7 @@ export class SpanContext {
   constructor(
     traceContext: TraceContext,
     name: string,
-    spanType: SpanType = 'default',
+    spanType: SpanType = 'other',
     parentSpanId?: string,
     redact?: (data: unknown) => unknown,
   ) {

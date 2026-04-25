@@ -130,7 +130,7 @@ describe('instrumentMastraWorkflow', () => {
     const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
     const span = payload?.spans[0]
     expect(span?.name).toBe('mastra.workflow.rag')
-    expect(span?.span_type).toBe('chain')
+    expect(span?.span_type).toBe('other')
     expect(span?.metadata['gen_ai.system']).toBe('mastra')
     expect(span?.output).toBe('{"ok":true}')
   })

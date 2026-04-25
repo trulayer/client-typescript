@@ -68,7 +68,7 @@ describe('createTestClient', () => {
   it('after trace + flush, sender has spans', async () => {
     const { client, sender } = createTestClient()
     await client.trace('test-trace', async (t) => {
-      await t.span('step-1', 'default', async () => {})
+      await t.span('step-1', 'other', async () => {})
       await t.span('step-2', 'llm', async (s) => {
         s.setModel('gpt-4o')
       })
@@ -127,7 +127,7 @@ function makeSpan(id: string, traceId: string, name = 'test-span') {
     id,
     trace_id: traceId,
     name,
-    span_type: 'default' as const,
+    span_type: 'other' as const,
     input: null,
     output: null,
     error: false,
