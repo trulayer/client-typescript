@@ -2,12 +2,11 @@ name: Release SDK, MCP, and Skills
 
 on:
   push:
-    branches: [production]
+    branches: [main]
   workflow_dispatch:
 
-# Publishes @trulayer/sdk, @trulayer/mcp, and @trulayer/skills to npm on every
-# merge to production. Version-change detection skips each publish job when its
-# package.json version hasn't changed relative to the previous commit.
+# Publishes @trulayer/sdk and @trulayer/mcp to npm on every merge to main.
+# Version-change detection skips the publish job when neither package.json changed.
 permissions:
   contents: write
   id-token: write
