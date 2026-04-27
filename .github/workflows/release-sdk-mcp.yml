@@ -1,12 +1,10 @@
 name: Release SDK, MCP, and Skills
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
-# Publishes @trulayer/sdk, @trulayer/mcp, and @trulayer/skills to npm on every
-# merge to main. Versions are bumped automatically from the current npm registry
+# Publishes @trulayer/sdk, @trulayer/mcp, and @trulayer/skills to npm on demand.
+# Versions are bumped automatically from the current npm registry
 # state — no manual version change in package.json is required.
 permissions:
   contents: write
