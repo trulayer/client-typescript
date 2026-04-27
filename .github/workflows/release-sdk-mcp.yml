@@ -5,197 +5,135 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Publishes @trulayer/sdk and @trulayer/mcp to npm on every merge to main.
-# Version-change detection skips the publish job when neither package.json changed.
+# Publishes @trulayer/sdk, @trulayer/mcp, and @trulayer/skills to npm on every
+# merge to main. Versions are bumped automatically from the current npm registry
+# state — no manual version change in package.json is required.
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  check-versions:
-    name: Detect version changes
+  release:
+    name: Bump versions, publish, and tag
     runs-on: ubuntu-latest
-    outputs:
-      sdk_changed: ${{ steps.write.outputs.sdk_changed }}
-      mcp_changed: ${{ steps.write.outputs.mcp_changed }}
-      skills_changed: ${{ steps.write.outputs.skills_changed }}
-      sdk_version: ${{ steps.write.outputs.sdk_version }}
-      mcp_version: ${{ steps.write.outputs.mcp_version }}
-      skills_version: ${{ steps.write.outputs.skills_version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
-      - name: Write outputs
-        id: write
-        run: |
-          SDK_PREV=$(git show HEAD^:package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-          SDK_CURR=$(jq -r '.version' package.json)
-          MCP_PREV=$(git show HEAD^:packages/mcp/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-          MCP_CURR=$(jq -r '.version' packages/mcp/package.json)
-          SKILLS_PREV=$(git show HEAD^:packages/skills/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-          SKILLS_CURR=$(jq -r '.version' packages/skills/package.json)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-          echo "sdk: $SDK_PREV -> $SDK_CURR"
-          echo "mcp: $MCP_PREV -> $MCP_CURR"
-          echo "skills: $SKILLS_PREV -> $SKILLS_CURR"
-
-          [ "$SDK_PREV" != "$SDK_CURR" ] && echo "sdk_changed=true" >> "$GITHUB_OUTPUT" || echo "sdk_changed=false" >> "$GITHUB_OUTPUT"
-          [ "$MCP_PREV" != "$MCP_CURR" ] && echo "mcp_changed=true" >> "$GITHUB_OUTPUT" || echo "mcp_changed=false" >> "$GITHUB_OUTPUT"
-          [ "$SKILLS_PREV" != "$SKILLS_CURR" ] && echo "skills_changed=true" >> "$GITHUB_OUTPUT" || echo "skills_changed=false" >> "$GITHUB_OUTPUT"
-          echo "sdk_version=$SDK_CURR" >> "$GITHUB_OUTPUT"
-          echo "mcp_version=$MCP_CURR" >> "$GITHUB_OUTPUT"
-          echo "skills_version=$SKILLS_CURR" >> "$GITHUB_OUTPUT"
-
-  publish-sdk:
-    name: Publish @trulayer/sdk
-    needs: check-versions
-    if: needs.check-versions.outputs.sdk_changed == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: latest
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Set version output
-        id: version
-        run: echo "version=${{ needs.check-versions.outputs.sdk_version }}" >> "$GITHUB_OUTPUT"
-      - name: Create artifacts directory
-        run: mkdir -p artifacts
-      - name: Generate CycloneDX SBOM
+
+      - name: Compute next versions from npm registry
+        id: versions
+        run: |
+          bump_patch() {
+            local v="$1" major minor patch
+            IFS='.' read -r major minor patch <<< "$v"
+            echo "$major.$minor.$((patch + 1))"
+          }
+
+          SDK_PUBLISHED=$(npm view @trulayer/sdk version 2>/dev/null || echo "0.0.0")
+          MCP_PUBLISHED=$(npm view @trulayer/mcp version 2>/dev/null || echo "0.0.0")
+          SKILLS_PUBLISHED=$(npm view @trulayer/skills version 2>/dev/null || echo "0.0.0")
+
+          SDK_NEXT=$(bump_patch "$SDK_PUBLISHED")
+          MCP_NEXT=$(bump_patch "$MCP_PUBLISHED")
+          SKILLS_NEXT=$(bump_patch "$SKILLS_PUBLISHED")
+
+          echo "SDK: $SDK_PUBLISHED -> $SDK_NEXT"
+          echo "MCP: $MCP_PUBLISHED -> $MCP_NEXT"
+          echo "SKILLS: $SKILLS_PUBLISHED -> $SKILLS_NEXT"
+
+          jq --arg v "$SDK_NEXT" '.version = $v' package.json > tmp.json && mv tmp.json package.json
+          jq --arg v "$MCP_NEXT" '.version = $v' packages/mcp/package.json > tmp.json && mv tmp.json packages/mcp/package.json
+          jq --arg v "$SKILLS_NEXT" '.version = $v' packages/skills/package.json > tmp.json && mv tmp.json packages/skills/package.json
+
+          echo "sdk_version=$SDK_NEXT" >> "$GITHUB_OUTPUT"
+          echo "mcp_version=$MCP_NEXT" >> "$GITHUB_OUTPUT"
+          echo "skills_version=$SKILLS_NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Build SDK
+        run: pnpm build
+
+      - name: Build and test MCP
+        run: |
+          pnpm --filter @trulayer/mcp build
+          pnpm --filter @trulayer/mcp test
+
+      - name: Build and test Skills
+        run: |
+          pnpm --filter @trulayer/skills build
+          pnpm --filter @trulayer/skills test
+
+      - name: Generate CycloneDX SBOM for SDK
         uses: anchore/sbom-action@v0
         with:
           path: .
           format: cyclonedx-json
-          output-file: artifacts/trulayer-sdk-${{ steps.version.outputs.version }}-sbom.cdx.json
+          output-file: trulayer-sdk-${{ steps.versions.outputs.sdk_version }}-sbom.cdx.json
           upload-artifact: false
           upload-release-assets: false
-      - name: Pack tarball
+
+      - name: Pack SDK tarball
         run: |
           set -euo pipefail
           npm pack --json > pack.json
-          tarball=$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const j = JSON.parse(readFileSync("pack.json", "utf8")); process.stdout.write(j[0].filename);')
-          mv "$tarball" "artifacts/$tarball"
-      - name: Publish to npm with provenance
+          tarball=$(node --input-type=module -e \
+            'import { readFileSync } from "node:fs"; const j = JSON.parse(readFileSync("pack.json","utf8")); process.stdout.write(j[0].filename);')
+          echo "SDK_TARBALL=$tarball" >> "$GITHUB_ENV"
+
+      - name: Publish @trulayer/sdk
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Tag release
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version.outputs.version }}" || echo "tag already exists"
-          git push origin "v${{ steps.version.outputs.version }}" || echo "tag already pushed"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-artifacts
-          path: artifacts/
 
-  publish-mcp:
-    name: Publish @trulayer/mcp
-    needs: check-versions
-    if: needs.check-versions.outputs.mcp_changed == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @trulayer/mcp build
-      - run: pnpm --filter @trulayer/mcp test
-      - name: Set version output
-        id: version
-        run: echo "version=${{ needs.check-versions.outputs.mcp_version }}" >> "$GITHUB_OUTPUT"
       - name: Publish @trulayer/mcp
         working-directory: packages/mcp
         run: pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Tag release
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "mcp-v${{ steps.version.outputs.version }}" || echo "tag already exists"
-          git push origin "mcp-v${{ steps.version.outputs.version }}" || echo "tag already pushed"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-skills:
-    name: Publish @trulayer/skills
-    needs: check-versions
-    if: needs.check-versions.outputs.skills_changed == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @trulayer/skills build
-      - run: pnpm --filter @trulayer/skills test
-      - name: Set version output
-        id: version
-        run: echo "version=${{ needs.check-versions.outputs.skills_version }}" >> "$GITHUB_OUTPUT"
       - name: Publish @trulayer/skills
         working-directory: packages/skills
         run: pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Tag release
+
+      - name: Commit version bumps and push tags
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "skills-v${{ steps.version.outputs.version }}" || echo "tag already exists"
-          git push origin "skills-v${{ steps.version.outputs.version }}" || echo "tag already pushed"
+          git add package.json packages/mcp/package.json packages/skills/package.json
+          git commit -m "chore: release sdk@${{ steps.versions.outputs.sdk_version }}, mcp@${{ steps.versions.outputs.mcp_version }}, skills@${{ steps.versions.outputs.skills_version }} [skip ci]"
+          git tag "v${{ steps.versions.outputs.sdk_version }}"
+          git tag "mcp-v${{ steps.versions.outputs.mcp_version }}"
+          git tag "skills-v${{ steps.versions.outputs.skills_version }}"
+          git push origin HEAD:main
+          git push origin "v${{ steps.versions.outputs.sdk_version }}" "mcp-v${{ steps.versions.outputs.mcp_version }}" "skills-v${{ steps.versions.outputs.skills_version }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  create-release:
-    name: Create GitHub Release
-    needs: [publish-sdk, publish-mcp, publish-skills]
-    if: always() && (needs.publish-sdk.result == 'success' || needs.publish-mcp.result == 'success' || needs.publish-skills.result == 'success')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download SDK artifacts
-        if: needs.publish-sdk.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: sdk-artifacts
-          path: artifacts/
-        continue-on-error: true
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.publish-sdk.outputs.version || needs.publish-mcp.outputs.version || needs.publish-skills.outputs.version }}
-          files: artifacts/**
+          tag_name: v${{ steps.versions.outputs.sdk_version }}
+          files: |
+            ${{ env.SDK_TARBALL }}
+            trulayer-sdk-${{ steps.versions.outputs.sdk_version }}-sbom.cdx.json
           generate_release_notes: true
+          body: |
+            - `@trulayer/sdk` v${{ steps.versions.outputs.sdk_version }}
+            - `@trulayer/mcp` v${{ steps.versions.outputs.mcp_version }}
+            - `@trulayer/skills` v${{ steps.versions.outputs.skills_version }}
           fail_on_unmatched_files: false
