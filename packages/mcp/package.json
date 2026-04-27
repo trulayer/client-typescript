@@ -38,6 +38,10 @@
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trulayer/client-typescript"
+  },
   "engines": {
     "node": ">=18"
   },
