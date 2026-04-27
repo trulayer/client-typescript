@@ -1,4 +1,4 @@
-name: Release SDK and MCP
+name: Release SDK, MCP, and Skills
 
 on:
   push:
@@ -16,30 +16,16 @@ jobs:
     name: Detect version changes
     runs-on: ubuntu-latest
     outputs:
-      sdk_changed: ${{ steps.check.outputs.sdk_changed }}
-      mcp_changed: ${{ steps.check.outputs.mcp_changed }}
-      sdk_version: ${{ steps.check.outputs.sdk_version }}
-      mcp_version: ${{ steps.check.outputs.mcp_version }}
+      sdk_changed: ${{ steps.write.outputs.sdk_changed }}
+      mcp_changed: ${{ steps.write.outputs.mcp_changed }}
+      skills_changed: ${{ steps.write.outputs.skills_changed }}
+      sdk_version: ${{ steps.write.outputs.sdk_version }}
+      mcp_version: ${{ steps.write.outputs.mcp_version }}
+      skills_version: ${{ steps.write.outputs.skills_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - name: Detect version changes
-        id: check
-        run: |
-          SDK_PREV=$(git show HEAD^:package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-          SDK_CURR=$(jq -r '.version' package.json)
-          MCP_PREV=$(git show HEAD^:packages/mcp/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-          MCP_CURR=$(jq -r '.version' packages/mcp/package.json)
-
-          echo "sdk: $SDK_PREV -> $SDK_CURR"
-          echo "mcp: $MCP_PREV -> $MCP_CURR"
-
-          [ "$SDK_PREV" != "$SDK_CURR" ] && echo "sdk_changed=true" || echo "sdk_changed=false"
-          [ "$MCP_PREV" != "$MCP_CURR" ] && echo "mcp_changed=true" || echo "mcp_changed=false"
-          echo "sdk_version=$SDK_CURR"
-          echo "mcp_version=$MCP_CURR"
-        shell: bash
       - name: Write outputs
         id: write
         run: |
@@ -47,10 +33,19 @@ jobs:
           SDK_CURR=$(jq -r '.version' package.json)
           MCP_PREV=$(git show HEAD^:packages/mcp/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
           MCP_CURR=$(jq -r '.version' packages/mcp/package.json)
+          SKILLS_PREV=$(git show HEAD^:packages/skills/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
+          SKILLS_CURR=$(jq -r '.version' packages/skills/package.json)
+
+          echo "sdk: $SDK_PREV -> $SDK_CURR"
+          echo "mcp: $MCP_PREV -> $MCP_CURR"
+          echo "skills: $SKILLS_PREV -> $SKILLS_CURR"
+
           [ "$SDK_PREV" != "$SDK_CURR" ] && echo "sdk_changed=true" >> "$GITHUB_OUTPUT" || echo "sdk_changed=false" >> "$GITHUB_OUTPUT"
           [ "$MCP_PREV" != "$MCP_CURR" ] && echo "mcp_changed=true" >> "$GITHUB_OUTPUT" || echo "mcp_changed=false" >> "$GITHUB_OUTPUT"
+          [ "$SKILLS_PREV" != "$SKILLS_CURR" ] && echo "skills_changed=true" >> "$GITHUB_OUTPUT" || echo "skills_changed=false" >> "$GITHUB_OUTPUT"
           echo "sdk_version=$SDK_CURR" >> "$GITHUB_OUTPUT"
           echo "mcp_version=$MCP_CURR" >> "$GITHUB_OUTPUT"
+          echo "skills_version=$SKILLS_CURR" >> "$GITHUB_OUTPUT"
 
   publish-sdk:
     name: Publish @trulayer/sdk
@@ -145,10 +140,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish-skills:
+    name: Publish @trulayer/skills
+    needs: check-versions
+    if: needs.check-versions.outputs.skills_changed == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @trulayer/skills build
+      - run: pnpm --filter @trulayer/skills test
+      - name: Set version output
+        id: version
+        run: echo "version=${{ needs.check-versions.outputs.skills_version }}" >> "$GITHUB_OUTPUT"
+      - name: Publish @trulayer/skills
+        working-directory: packages/skills
+        run: pnpm publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Tag release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "skills-v${{ steps.version.outputs.version }}" || echo "tag already exists"
+          git push origin "skills-v${{ steps.version.outputs.version }}" || echo "tag already pushed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   create-release:
     name: Create GitHub Release
-    needs: [publish-sdk, publish-mcp]
-    if: always() && (needs.publish-sdk.result == 'success' || needs.publish-mcp.result == 'success')
+    needs: [publish-sdk, publish-mcp, publish-skills]
+    if: always() && (needs.publish-sdk.result == 'success' || needs.publish-mcp.result == 'success' || needs.publish-skills.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -163,7 +195,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.publish-sdk.outputs.version || needs.publish-mcp.outputs.version }}
+          tag_name: v${{ needs.publish-sdk.outputs.version || needs.publish-mcp.outputs.version || needs.publish-skills.outputs.version }}
           files: artifacts/**
           generate_release_notes: true
           fail_on_unmatched_files: false
