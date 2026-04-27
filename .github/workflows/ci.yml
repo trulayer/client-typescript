@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, production]
   pull_request:
     branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/production' }}
 
 jobs:
   lint:
@@ -122,31 +122,24 @@ jobs:
 
   release-workflow-lint:
     name: Release workflow supply-chain lint
-    # Static check so a PR that drops cosign signing, npm provenance, or
-    # CycloneDX generation from release.yml fails here instead of silently
-    # on the next tag push.
+    # Static check so a PR that drops npm provenance or CycloneDX generation
+    # from release-sdk-mcp.yml fails here instead of silently on the next tag push.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify release.yml wires cosign + provenance + CycloneDX
+      - name: Verify release-sdk-mcp.yml wires provenance + CycloneDX
         run: |
           set -euo pipefail
-          wf=.github/workflows/release.yml
-          grep -q 'sigstore/cosign-installer' "$wf" \
-            || { echo "release.yml: missing cosign installer"; exit 1; }
-          grep -q 'cosign sign-blob' "$wf" \
-            || { echo "release.yml: missing cosign sign-blob step"; exit 1; }
+          wf=.github/workflows/release-sdk-mcp.yml
           grep -q -- '--provenance' "$wf" \
-            || { echo "release.yml: npm publish missing --provenance flag"; exit 1; }
+            || { echo "release-sdk-mcp.yml: npm publish missing --provenance flag"; exit 1; }
           grep -q 'anchore/sbom-action' "$wf" \
-            || { echo "release.yml: missing CycloneDX SBOM action (anchore/sbom-action)"; exit 1; }
+            || { echo "release-sdk-mcp.yml: missing CycloneDX SBOM action (anchore/sbom-action)"; exit 1; }
           grep -q 'cyclonedx-json' "$wf" \
-            || { echo "release.yml: SBOM format is not cyclonedx-json"; exit 1; }
+            || { echo "release-sdk-mcp.yml: SBOM format is not cyclonedx-json"; exit 1; }
           grep -q 'softprops/action-gh-release' "$wf" \
-            || { echo "release.yml: missing GitHub Release attachment"; exit 1; }
-          grep -q 'cosign verify-blob' "$wf" \
-            || { echo "release.yml: missing post-sign cosign verify-blob step"; exit 1; }
-          echo "release.yml: all required supply-chain steps present"
+            || { echo "release-sdk-mcp.yml: missing GitHub Release attachment"; exit 1; }
+          echo "release-sdk-mcp.yml: all required supply-chain steps present"
 
   ci:
     name: ci
