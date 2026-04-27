@@ -1,0 +1,37 @@
+{
+  "name": "@trulayer/skills",
+  "version": "0.1.0",
+  "description": "TruLayer Claude Code skills — slash commands for instrumenting AI code with TruLayer",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "trulayer-skills": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsc --noEmit --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trulayer/client-typescript"
+  },
+  "keywords": [
+    "trulayer",
+    "claude-code",
+    "skills",
+    "slash-commands",
+    "ai",
+    "observability"
+  ]
+}
