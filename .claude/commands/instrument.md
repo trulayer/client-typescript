@@ -13,7 +13,7 @@ Generate this file:
 
 ```typescript
 import type { TruLayer } from '../client'
-import type { SpanInput } from '../model'
+import type { SpanData } from '../model'
 
 /**
  * Returns a new instrumented instance of the <Provider> client.
@@ -37,7 +37,7 @@ export function instrument<Provider>(
                 const result = await (chatOriginal as Function).apply(chatTarget, args)
                 const latencyMs = Date.now() - start
 
-                const span: SpanInput = {
+                const span: SpanData = {
                   name: '<provider>.completion',
                   input: JSON.stringify(args[0]),
                   output: JSON.stringify(result),
