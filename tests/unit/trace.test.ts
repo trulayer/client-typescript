@@ -38,6 +38,29 @@ describe('SpanContext', () => {
     span.setMetadata({ key1: 'val1' }).setMetadata({ key2: 'val2' })
     expect(span.data.metadata).toEqual({ key1: 'val1', key2: 'val2' })
   })
+
+  it('setCost stores per-span USD cost on the span data', () => {
+    const span = makeSpan('llm-call', 'llm')
+    const result = span.setCost(0.0042)
+    expect(result).toBe(span)
+    expect(span.data.cost).toBeCloseTo(0.0042)
+  })
+
+  it('cost defaults to null when setCost is never called', () => {
+    const span = makeSpan('plain-span')
+    expect(span.data.cost).toBeNull()
+  })
+
+  it('per-span cost surfaces in the trace payload', async () => {
+    const batch = mockBatch()
+    const ctx = new TraceContext(batch, 'proj-1')
+    await ctx.span('llm-call', 'llm', async (s) => {
+      s.setCost(0.0042)
+    })
+    ctx.finish()
+    const payload = vi.mocked(batch.enqueue).mock.calls[0]?.[0]
+    expect(payload?.spans[0]?.cost).toBeCloseTo(0.0042)
+  })
 })
 
 describe('TraceContext', () => {

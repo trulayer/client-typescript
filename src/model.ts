@@ -25,6 +25,7 @@ export interface SpanData {
   model: string | null
   prompt_tokens: number | null
   completion_tokens: number | null
+  cost: number | null
   metadata: Record<string, unknown>
   started_at: string // ISO 8601
   ended_at: string | null
@@ -81,6 +82,7 @@ export interface SpanWire {
   model: string | null
   prompt_tokens: number | null
   completion_tokens: number | null
+  cost: number | null
   metadata: Record<string, unknown>
   start_time: string
   end_time: string | null
@@ -124,6 +126,7 @@ export function spanToWire(s: SpanData): SpanWire {
     model: s.model,
     prompt_tokens: s.prompt_tokens,
     completion_tokens: s.completion_tokens,
+    cost: s.cost,
     metadata: s.metadata,
     start_time: s.started_at,
     end_time: s.ended_at,
