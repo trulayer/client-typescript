@@ -1,9 +1,12 @@
 import type { TraceData } from './model.js'
 import { traceToWire } from './model.js'
 import {
+  ForbiddenError,
   InvalidAPIKeyError,
+  ProjectArchivedError,
   TruLayerFlushError,
   isInvalidAPIKeyPayload,
+  isProjectArchivedPayload,
 } from './errors.js'
 
 const MAX_RETRIES = 3
@@ -43,11 +46,19 @@ export class BatchSender {
   private buffer: TraceData[] = []
   private timer: ReturnType<typeof setTimeout> | null = null
   /**
-   * Set when the API has told us the credentials are permanently bad.
-   * Once latched, the sender drops all queued and future events — retrying
-   * would waste the backend's time and cannot succeed.
+   * Set when the API has told us this client cannot succeed — bad credentials
+   * (401), an archived project (403), or any other 403. Once latched, the
+   * sender drops all queued and future events; retrying would waste the
+   * backend's time and cannot succeed.
    */
-  private fatalError: InvalidAPIKeyError | null = null
+  private fatalError:
+    | InvalidAPIKeyError
+    | ProjectArchivedError
+    | ForbiddenError
+    | null = null
+  /** Mirror of {@link fatalError} keyed for the caller-facing semantic. New
+   *  client instances start with this `false`. */
+  private _disabled = false
   /** Timestamp of the most recent drop-mode warning (ms since epoch). */
   private lastWarnAt: number = 0
   /** Resolves when every in-flight send settles — lets `shutdown()` surface
@@ -120,8 +131,22 @@ export class BatchSender {
    * Returns the latched non-retryable error, if any. Exposed for tests and
    * for callers that want to surface configuration failures proactively.
    */
-  getFatalError(): InvalidAPIKeyError | null {
+  getFatalError():
+    | InvalidAPIKeyError
+    | ProjectArchivedError
+    | ForbiddenError
+    | null {
     return this.fatalError
+  }
+
+  /**
+   * True iff the sender has latched into a permanent disabled state. New
+   * client instances start with this `false` — it is set after the API
+   * returns a non-retryable 401 or 403 and never reset for the lifetime of
+   * the sender.
+   */
+  isDisabled(): boolean {
+    return this._disabled
   }
 
   /** @internal Exposed for tests. */
@@ -162,6 +187,7 @@ export class BatchSender {
           const match = isInvalidAPIKeyPayload(payload)
           if (match) {
             this.fatalError = new InvalidAPIKeyError(match.code)
+            this._disabled = true
             // Stop the flush timer and drop any remaining queued items.
             if (this.timer !== null) {
               clearTimeout(this.timer)
@@ -174,6 +200,39 @@ export class BatchSender {
             )
             return
           }
+        }
+        if (resp.status === 403) {
+          // 403 is always permanent for this client. Distinguish the
+          // project-archived case (so callers can surface a tailored
+          // message) from a generic 403, but disable in both cases —
+          // retrying cannot succeed.
+          let payload: unknown = null
+          try {
+            payload = await resp.json()
+          } catch {
+            // Fall through — body may not be JSON
+          }
+          if (isProjectArchivedPayload(payload)) {
+            this.fatalError = new ProjectArchivedError()
+            console.error(
+              '[TruLayer] Project is archived — trace export disabled. ' +
+                'Unarchive the project at app.trulayer.ai to resume.',
+            )
+          } else {
+            this.fatalError = new ForbiddenError()
+            console.error(
+              '[TruLayer] Trace export disabled — the API rejected the ' +
+                'request with HTTP 403. Check that the API key is valid and ' +
+                'the project is active at app.trulayer.ai.',
+            )
+          }
+          this._disabled = true
+          if (this.timer !== null) {
+            clearTimeout(this.timer)
+            this.timer = null
+          }
+          this.buffer = []
+          return
         }
         throw new Error(`HTTP ${resp.status}`)
       }

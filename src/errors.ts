@@ -75,3 +75,50 @@ export function isInvalidAPIKeyPayload(
   }
   return null
 }
+
+const PROJECT_ARCHIVED_CODE = 'error.project.archived'
+
+/**
+ * Raised when the TruLayer API rejects ingestion with HTTP 403 because the
+ * project associated with the API key has been archived. This is a permanent
+ * state for the current client — retrying cannot succeed until the project
+ * is unarchived. The SDK halts pending and future requests for the lifetime
+ * of the client instance.
+ */
+export class ProjectArchivedError extends Error {
+  override readonly name = 'ProjectArchivedError'
+
+  constructor() {
+    super(
+      'Project is archived — trace export disabled. Unarchive the project at ' +
+        'app.trulayer.ai to resume.',
+    )
+    Object.setPrototypeOf(this, ProjectArchivedError.prototype)
+  }
+}
+
+/**
+ * Raised when the TruLayer API rejects ingestion with HTTP 403 for any reason
+ * that isn't specifically the archived-project case. Generic 403s indicate a
+ * permanent credentials or access problem — the SDK halts submission to
+ * avoid hammering the backend.
+ */
+export class ForbiddenError extends Error {
+  override readonly name = 'ForbiddenError'
+
+  constructor() {
+    super(
+      'Trace export disabled — the API rejected the request with HTTP 403. ' +
+        'Check that the API key is valid and the project is active at app.trulayer.ai.',
+    )
+    Object.setPrototypeOf(this, ForbiddenError.prototype)
+  }
+}
+
+/** Returns true iff the JSON error body represents the project-archived 403 payload. */
+export function isProjectArchivedPayload(body: unknown): boolean {
+  if (body === null || typeof body !== 'object') return false
+  const obj = body as Record<string, unknown>
+  const raw = obj['code'] ?? obj['error']
+  return raw === PROJECT_ARCHIVED_CODE
+}
