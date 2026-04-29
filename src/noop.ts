@@ -18,6 +18,7 @@ export class NoopSpanContext {
     model: null,
     prompt_tokens: null,
     completion_tokens: null,
+    cost: null,
     metadata: {},
     started_at: '',
     ended_at: null,
@@ -36,6 +37,10 @@ export class NoopSpanContext {
   }
 
   setTokens(_prompt?: number, _completion?: number): this {
+    return this
+  }
+
+  setCost(_usd: number): this {
     return this
   }
 

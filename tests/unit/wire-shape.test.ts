@@ -101,6 +101,7 @@ describe('span wire shape', () => {
       model: 'gpt-4',
       prompt_tokens: 10,
       completion_tokens: 20,
+      cost: 0.0042,
       metadata: { a: 1 },
       started_at: '2025-01-01T00:00:00.000Z',
       ended_at: '2025-01-01T00:00:01.000Z',
@@ -119,6 +120,7 @@ describe('span wire shape', () => {
       model: 'gpt-4',
       prompt_tokens: 10,
       completion_tokens: 20,
+      cost: 0.0042,
       metadata: { a: 1 },
       start_time: '2025-01-01T00:00:00.000Z',
       end_time: '2025-01-01T00:00:01.000Z',
@@ -138,11 +140,54 @@ describe('span wire shape', () => {
       model: null,
       prompt_tokens: null,
       completion_tokens: null,
+      cost: null,
       metadata: {},
       started_at: 'now',
       ended_at: null,
     })
     expect('parent_span_id' in wire).toBe(false)
+  })
+
+  it('passes per-span cost through to the wire payload', () => {
+    const wire = spanToWire({
+      id: 'sid',
+      trace_id: 'tid',
+      name: 'llm-call',
+      span_type: 'llm',
+      input: null,
+      output: null,
+      error: null,
+      latency_ms: null,
+      model: 'gpt-4o',
+      prompt_tokens: null,
+      completion_tokens: null,
+      cost: 0.0042,
+      metadata: {},
+      started_at: 'now',
+      ended_at: null,
+    })
+    expect(wire.cost).toBeCloseTo(0.0042)
+  })
+
+  it('serialises cost as null when set_cost was never called', () => {
+    const wire = spanToWire({
+      id: 'sid',
+      trace_id: 'tid',
+      name: 'plain',
+      span_type: 'other',
+      input: null,
+      output: null,
+      error: null,
+      latency_ms: null,
+      model: null,
+      prompt_tokens: null,
+      completion_tokens: null,
+      cost: null,
+      metadata: {},
+      started_at: 'now',
+      ended_at: null,
+    })
+    expect(wire.cost).toBeNull()
   })
 })
 

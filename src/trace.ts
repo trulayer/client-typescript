@@ -111,6 +111,7 @@ export class SpanContext {
       model: null,
       prompt_tokens: null,
       completion_tokens: null,
+      cost: null,
       metadata: {},
       started_at: nowISO(),
       ended_at: null,
@@ -158,6 +159,16 @@ export class SpanContext {
   setTokens(prompt?: number, completion?: number): this {
     if (prompt !== undefined) this.data.prompt_tokens = prompt
     if (completion !== undefined) this.data.completion_tokens = completion
+    return this
+  }
+
+  /**
+   * Record the USD cost for this span (e.g. an LLM call). Each span in a
+   * multi-span trace can carry its own cost — useful when a trace contains
+   * multiple LLM calls and you want per-call cost attribution.
+   */
+  setCost(usd: number): this {
+    this.data.cost = usd
     return this
   }
 
