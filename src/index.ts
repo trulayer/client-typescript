@@ -37,7 +37,12 @@ export { LocalBatchSender } from './local-batch.js'
 export type { CapturedBatch } from './local-batch.js'
 export { Redactor, BUILTIN_PACKS, redact } from './redact.js'
 export type { Rule, RedactorOptions, PackName } from './redact.js'
-export { InvalidAPIKeyError, TruLayerFlushError } from './errors.js'
+export {
+  ForbiddenError,
+  InvalidAPIKeyError,
+  ProjectArchivedError,
+  TruLayerFlushError,
+} from './errors.js'
 export { replay } from './replay.js'
 export type { ReplayOptions, ReplayResult } from './replay.js'
 
