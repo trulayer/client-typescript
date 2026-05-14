@@ -307,7 +307,15 @@ export class TraceContext {
     // Resolve parent: explicit > AsyncLocalStorage > undefined (top-level)
     const parentSpanId = explicitParentId ?? currentParentSpanId()
     const span = new SpanContext(this, name, spanType, parentSpanId, this.redact)
+    // Capture wall-clock and monotonic start at the same instant, *before*
+    // the callback runs. The SpanContext constructor stamps started_at at
+    // object creation time which is close-enough today, but doing it here
+    // keeps the start/end pair anchored to the same moment as the latency
+    // measurement and protects the timestamp from any future drift between
+    // span construction and the actual operation.
+    const startedAt = nowISO()
     const startMs = Date.now()
+    span.data.started_at = startedAt
 
     const runCallback = async (): Promise<T> => {
       try {
